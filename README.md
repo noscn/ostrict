@@ -1,5 +1,7 @@
 # strict-semantic-mcp
 
+[![CI](https://github.com/SonChauNgoc/strict-semantic-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/SonChauNgoc/strict-semantic-mcp/actions/workflows/ci.yml)
+
 **A CI linter for Snowflake-style semantic views, and a deterministic, FinOps-safe
 semantic compiler + MCP server for AI data agents on BigQuery, DuckDB, Snowflake
 and Postgres.**
@@ -45,7 +47,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 63 tests
+.venv/bin/python -m pytest                                  # 64 tests
 .venv/bin/strict-semantic lint tests/fixtures/ecommerce.sql
 .venv/bin/strict-semantic eval tests/fixtures/golden_questions.yaml
 .venv/bin/strict-semantic compile tests/fixtures/ecommerce.yaml \
@@ -130,8 +132,34 @@ src/strict_semantic/
 Design departures from the original blueprint, with reasons, are in
 [docs/REVISIONS.md](docs/REVISIONS.md).
 
+## Security & deployment responsibility
+
+The server speaks **stdio** and is designed to run next to the agent, on your
+machine, with your credentials. If you expose it over a network (HTTP/SSE,
+a gateway, a shared host), authentication, transport security and tenant
+isolation are yours to provide — nothing here does that for you.
+
+Expect defense in depth from the warehouse side too: run the connector with a
+**least-privilege, read-only** account scoped to the datasets the views name.
+The compiler never concatenates SQL strings — filter values become typed
+sqlglot literals, operators come from a fixed whitelist, and every identifier
+must resolve against the linted model — but the SQL that reaches your warehouse
+should still be gated by the warehouse's own permissions. Per the Apache 2.0
+license, the software is provided as is, without warranty; securing the
+deployment is the deployer's responsibility.
+
+Report vulnerabilities privately via GitHub Security Advisories, not public
+issues.
+
+## Contributing
+
+Scope is deliberately strict and minimal — read
+[CONTRIBUTING.md](CONTRIBUTING.md) before proposing features. Short version:
+determinism is non-negotiable, escape hatches get declined, and extensions
+belong in plugins.
+
 ## License
 
-Apache 2.0. Fixtures and examples are a generic e-commerce schema; keep your
-company's semantic views in a private repository and point the server at them
-via `STRICT_SEMANTIC_CONFIG`.
+Apache 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)). Fixtures and examples
+are a generic e-commerce schema; keep your company's semantic views in a
+private repository and point the server at them via `STRICT_SEMANTIC_CONFIG`.
