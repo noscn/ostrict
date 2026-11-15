@@ -1,0 +1,40 @@
+[project]
+name = "strict-semantic-mcp"
+version = "0.1.0"
+description = "Strict semantic-view linter and deterministic, FinOps-safe SQL compiler with an MCP server for AI data agents."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = ["sqlglot>=26", "pydantic>=2.5", "pyyaml>=6"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2"]
+bigquery = ["google-cloud-bigquery>=3"]
+duckdb = ["duckdb>=1"]
+dev = ["pytest>=8", "duckdb>=1", "ruff>=0.6", "mcp>=2"]
+
+[project.scripts]
+strict-semantic = "strict_semantic.cli:main"
+strict-semantic-mcp = "strict_semantic.mcp_server.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 125
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true

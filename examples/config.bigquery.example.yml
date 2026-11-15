@@ -1,0 +1,13 @@
+# BigQuery MCP config template — copy, fill in, keep OUT of the public repo.
+views: ./views                      # your private semantic view specs
+connector:
+  type: bigquery
+  project: my-gcp-project
+  # credentials: /path/to/service_account.json   # omit to use ADC
+  max_bytes: 100000000000           # dry-run guard: refuse queries scanning > 100 GB
+  # location: US
+limits:
+  default_limit: 1000
+  max_limit: 10000
+lint:
+  security_allowlist: []

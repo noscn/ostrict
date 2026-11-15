@@ -1,0 +1,97 @@
+# Native YAML spec — must build the exact same AST as ecommerce.sql.
+name: ecommerce
+dialect: snowflake
+comment: Retail e-commerce sales and inventory for the demo warehouse.
+ai_sql_generation: Route revenue, order and inventory questions here. Always filter order_date or snapshot_date.
+
+tables:
+  customers:
+    source: shop.customers
+    primary_key: [customer_id]
+    comment: 'One row per customer. Primary date: signup_date. Source: shop.customers.'
+  orders:
+    source: shop.orders
+    primary_key: [order_id]
+    comment: 'One row per order. Primary date: order_date. Partition: order_date BY order_date. Source: shop.orders.'
+  order_items:
+    source: shop.order_items
+    primary_key: [order_id, line_no]
+    comment: 'One row per order line. Primary date: order_date. Partition: order_date BY order_date. Source: shop.order_items.'
+  products:
+    source: shop.products
+    primary_key: [product_id]
+    comment: 'One row per product. Primary date: created_at. Source: shop.products.'
+  daily_inventory_snapshot:
+    source: shop.daily_inventory_snapshot
+    primary_key: [snapshot_date, product_id]
+    comment: 'One row per product per day. Point-in-time snapshot. Primary date: snapshot_date. Partition: snapshot_date BY snapshot_date. Source: shop.daily_inventory_snapshot.'
+
+relationships:
+  - name: orders_customers
+    from: orders (customer_id)
+    to: customers (customer_id)
+  - name: items_orders
+    from: order_items (order_id)
+    to: orders (order_id)
+  - name: items_products
+    from: order_items (product_id)
+    to: products (product_id)
+  - name: inventory_products
+    from: daily_inventory_snapshot (product_id)
+    to: products (product_id)
+
+facts:
+  order_items.line_revenue:
+    expr: quantity * unit_price
+    comment: 'Row-level revenue for one order line: quantity times unit price.'
+
+dimensions:
+  customers.region:
+    expr: region
+    synonyms: [market, country_group]
+    comment: 'Customer home region. Values: EU, US, APAC.'
+  customers.segment:
+    expr: CASE WHEN is_vip THEN 'vip' ELSE 'regular' END
+    comment: 'Loyalty segment derived from the vip flag. Values: vip, regular.'
+  customers.signup_date:
+    expr: signup_date
+    comment: 'Date the customer signed up. Grains: day, month.'
+  orders.order_date:
+    expr: order_date
+    comment: 'Date the order was placed. Grains: day, week, month.'
+  orders.channel:
+    expr: channel
+    comment: 'Sales channel the order came through. Values: web, app, store.'
+  orders.order_status:
+    expr: status
+    comment: 'Lifecycle status of the order. Values: completed, cancelled.'
+  products.category:
+    expr: category
+    comment: 'Product merchandising category. Values: electronics, books.'
+  daily_inventory_snapshot.snapshot_date:
+    expr: snapshot_date
+    comment: 'Inventory snapshot date. Grains: day.'
+
+metrics:
+  order_items.revenue:
+    expr: SUM(line_revenue)
+    comment: 'Total revenue across order lines. Population: all order lines. Additivity: additive.'
+  order_items.units_sold:
+    expr: SUM(quantity)
+    comment: 'Units sold across order lines. Population: all order lines. Additivity: additive.'
+  orders.order_count:
+    expr: COUNT(order_id)
+    comment: 'Number of orders placed. Population: all orders. Additivity: additive.'
+  orders.buyer_count:
+    expr: COUNT(DISTINCT customer_id)
+    comment: 'Distinct customers who placed an order. Population: all orders. Additivity: non-additive.'
+  customers.customer_count:
+    expr: COUNT(customer_id)
+    comment: 'Number of customers on file. Population: all customers. Additivity: additive.'
+  daily_inventory_snapshot.stock_units:
+    expr: SUM(units_on_hand)
+    non_additive_by: snapshot_date
+    comment: 'Units on hand at the snapshot date. Population: all products. Additivity: non-additive.'
+  aov:
+    expr: revenue / order_count
+    comment: 'Average order value: revenue divided by order count. Additivity: ratio.'

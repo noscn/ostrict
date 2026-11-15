@@ -1,0 +1,9 @@
+# Demo MCP config: the e-commerce fixture on an in-memory DuckDB.
+#   STRICT_SEMANTIC_CONFIG=$PWD/examples/config.duckdb.yml strict-semantic-mcp
+views: ../tests/fixtures/ecommerce.sql
+connector:
+  type: duckdb
+  seed: ../tests/fixtures/seed_ecommerce.sql
+limits:
+  default_limit: 1000
+  max_limit: 10000

@@ -1,0 +1,105 @@
+# Golden Questions for the ecommerce fixture (SV-R10.2).
+# Graded deterministically against DuckDB — no LLM judge anywhere.
+view: ./ecommerce.sql
+seed: ./seed_ecommerce.sql
+
+cases:
+  - id: totals_january
+    family: revenue
+    kind: answer
+    question: What were total revenue and order count in January 2026?
+    request:
+      metrics: [revenue, order_count]
+      filters:
+        - { field: order_date, op: ">=", value: "2026-01-01" }
+        - { field: order_date, op: "<", value: "2026-02-01" }
+    expect:
+      rows:
+        - { revenue: 94.0, order_count: 5 }
+
+  - id: revenue_by_region
+    family: revenue
+    kind: answer
+    question: January 2026 revenue by customer region (orphan orders surface as null).
+    request:
+      metrics: [revenue]
+      dimensions: [region]
+      filters:
+        - { field: order_date, op: ">=", value: "2026-01-01" }
+        - { field: order_date, op: "<", value: "2026-02-01" }
+    expect:
+      rows:
+        - { region: EU, revenue: 70.0 }
+        - { region: US, revenue: 17.0 }
+        - { region: null, revenue: 7.0 }
+
+  - id: aov_by_month
+    family: ratio
+    kind: answer
+    question: Average order value by month, January through February 2026.
+    request:
+      metrics: [aov]
+      dimensions: [order_date__month]
+      filters:
+        - { field: order_date, op: between, value: ["2026-01-01", "2026-02-28"] }
+    expect:
+      rows:
+        - { order_date__month: "2026-01-01", aov: 18.8 }
+        - { order_date__month: "2026-02-01", aov: 100.0 }
+
+  - id: stock_pinned
+    family: snapshot
+    kind: answer
+    question: Units on hand on 2 January 2026.
+    request:
+      metrics: [stock_units]
+      filters:
+        - { field: snapshot_date, op: "=", value: "2026-01-02" }
+    expect:
+      rows:
+        - { stock_units: 70 }
+
+  - id: fanout_refused
+    family: guardrails
+    kind: refuse
+    question: Customer count sliced by order channel (would fan out).
+    request:
+      metrics: [customer_count]
+      dimensions: [channel]
+    expect: { error: ERR_FANOUT_JOIN_FORBIDDEN, message_contains: ancestor }
+
+  - id: raw_dump_refused
+    family: guardrails
+    kind: refuse
+    question: Just list regions (raw-row dump with no metric).
+    request:
+      dimensions: [region]
+    expect: { error: ERR_METRIC_REQUIRED, message_contains: get_dimension_values }
+
+  - id: full_scan_refused
+    family: finops
+    kind: refuse
+    question: All-time revenue with no date bound.
+    request:
+      metrics: [revenue]
+    expect: { error: ERR_MISSING_PARTITION_FILTER, message_contains: order_date }
+
+  - id: snapshot_range_refused
+    family: snapshot
+    kind: refuse
+    question: Sum stock across two snapshot dates without grouping by date.
+    request:
+      metrics: [stock_units]
+      filters:
+        - { field: snapshot_date, op: between, value: ["2026-01-01", "2026-01-02"] }
+    expect: { error: ERR_SNAPSHOT_AGGREGATION_VIOLATION, message_contains: pinned }
+
+  - id: metric_typo_clarified
+    family: ergonomics
+    kind: clarify
+    question: A typo'd metric name should come back with a suggestion.
+    request:
+      metrics: [revenu]
+      filters:
+        - { field: order_date, op: ">=", value: "2026-01-01" }
+    expect: { error: ERR_UNKNOWN_FIELD, message_contains: revenue }
