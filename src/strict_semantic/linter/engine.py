@@ -30,6 +30,7 @@ class LintConfig:
     security_deny: tuple[str, ...] = DEFAULT_SECURITY_DENY
     security_allowlist: tuple[str, ...] = ()
     no_pk_tables: tuple[str, ...] = ()  # SV-R2.1 event-only leaf exemption
+    no_primary_date_tables: tuple[str, ...] = ()  # SV-R2.3 exemption: pure dimension tables
     max_fields_per_table: int = 50  # SV-R2.4
     max_tables: int = 10  # SV-R2.5
     max_case_conditions: int = 2  # SV-R5.1

@@ -7,9 +7,22 @@ import json
 import sys
 from pathlib import Path
 
-from .linter import lint
+import yaml
+
+from .linter import LintConfig, lint
 from .models.errors import CompilerError
 from .parsers import load_view, load_views
+
+
+def _lint_config(path: str | None) -> LintConfig | None:
+    if not path:
+        return None
+    cfg = (yaml.safe_load(Path(path).read_text()) or {}).get("lint") or {}
+    return LintConfig(
+        security_allowlist=tuple(cfg.get("security_allowlist") or ()),
+        no_pk_tables=tuple(cfg.get("no_pk_tables") or ()),
+        no_primary_date_tables=tuple(cfg.get("no_primary_date_tables") or ()),
+    )
 
 
 def _views_from(paths: list[str]):
@@ -24,7 +37,7 @@ def _views_from(paths: list[str]):
 def cmd_lint(args) -> int:
     worst = 0
     for view in _views_from(args.paths):
-        report = lint(view)
+        report = lint(view, _lint_config(args.config))
         print(report.render())
         if not report.ok:
             worst = 1
@@ -43,7 +56,7 @@ def cmd_compile(args) -> int:
         order_by=args.order_by,
         limit=args.limit,
     )
-    compiled = compile_semantic_query(view, request, dialect=args.dialect)
+    compiled = compile_semantic_query(view, request, dialect=args.dialect, lint_config=_lint_config(args.config))
     print(compiled.sql)
     return 0
 
@@ -62,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sp = sub.add_parser("lint", help="lint semantic view files or folders (SV-R1..R10)")
     sp.add_argument("paths", nargs="+")
+    sp.add_argument("--config", default=None, help="strict_semantic.yml whose lint: section to apply")
     sp.set_defaults(fn=cmd_lint)
 
     sp = sub.add_parser("compile", help="compile a structured request to SQL (no execution)")
@@ -72,6 +86,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("-o", "--order-by", action="append", default=[])
     sp.add_argument("-l", "--limit", type=int)
     sp.add_argument("--dialect", default=None, help="bigquery | duckdb | snowflake | postgres")
+    sp.add_argument("--config", default=None, help="strict_semantic.yml whose lint: section to apply")
     sp.set_defaults(fn=cmd_compile)
 
     sp = sub.add_parser("eval", help="run a Golden Questions YAML deterministically (SV-R10.2)")

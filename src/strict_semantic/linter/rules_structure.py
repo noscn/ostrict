@@ -78,6 +78,8 @@ def r2_primary_date(view, graph, cfg):
     """SV-R2.3: exactly one primary date per table; snapshot tables must expose it as a time dimension."""
     out = []
     for t in view.tables.values():
+        if not t.primary_date and t.name in cfg.no_primary_date_tables and not t.snapshot:
+            continue  # declared date-less dimension table (e.g. a config/lookup table)
         if not t.primary_date:
             out.append(
                 _f("SV-R2.3", ERR_MISSING_PRIMARY_DATE, E,

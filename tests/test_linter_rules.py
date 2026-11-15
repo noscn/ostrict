@@ -272,3 +272,16 @@ def test_ensure_valid_raises_with_code():
     with pytest.raises(CompilerError) as e:
         ensure_valid(build_view(raw))
     assert e.value.code in ("ERR_MISSING_PRIMARY_DATE",)
+
+
+def test_r2_primary_date_exemption_for_dimension_tables():
+    raw = V()
+    raw["tables"]["config"] = {
+        "source": "s.config",
+        "primary_key": ["key"],
+        "comment": "One row per config key. Source: s.config.",
+    }
+    raw["relationships"].append({"name": "oc", "child": "orders", "columns": ["config_key"], "parent": "config"})
+    assert "ERR_MISSING_PRIMARY_DATE" in errors_of(raw)
+    cfg = LintConfig(no_primary_date_tables=("config",))
+    assert "ERR_MISSING_PRIMARY_DATE" not in errors_of(raw, cfg)

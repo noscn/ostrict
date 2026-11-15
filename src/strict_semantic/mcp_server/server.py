@@ -77,6 +77,7 @@ class _State:
         self.lint_config = LintConfig(
             security_allowlist=tuple(lint_cfg.get("security_allowlist") or ()),
             no_pk_tables=tuple(lint_cfg.get("no_pk_tables") or ()),
+            no_primary_date_tables=tuple(lint_cfg.get("no_primary_date_tables") or ()),
         )
 
     def views(self) -> dict[str, SemanticView]:
