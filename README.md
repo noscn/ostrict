@@ -1,6 +1,6 @@
 # strict-semantic-mcp
 
-[![CI](https://github.com/SonChauNgoc/strict-semantic-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/SonChauNgoc/strict-semantic-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml)
 
 **A CI linter for Snowflake-style semantic views, and a deterministic, FinOps-safe
 semantic compiler + MCP server for AI data agents on BigQuery, DuckDB, Snowflake
