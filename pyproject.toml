@@ -4,9 +4,21 @@ version = "0.1.0"
 description = "Strict semantic-view linter and deterministic, FinOps-safe SQL compiler with an MCP server for AI data agents."
 authors = [{ name = "Son Chau", email = "46123450+noscn@users.noreply.github.com" }]
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 requires-python = ">=3.10"
 dependencies = ["sqlglot>=26", "pydantic>=2.5", "pyyaml>=6"]
+keywords = ["semantic-layer", "mcp", "text-to-sql", "sqlglot", "bigquery", "data-governance", "finops"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Database",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [project.optional-dependencies]
 mcp = ["mcp>=2"]
@@ -14,12 +26,17 @@ bigquery = ["google-cloud-bigquery>=3"]
 duckdb = ["duckdb>=1"]
 dev = ["pytest>=8", "duckdb>=1", "ruff>=0.6", "mcp>=2"]
 
+[project.urls]
+Repository = "https://github.com/noscn/strict-semantic-mcp"
+Issues = "https://github.com/noscn/strict-semantic-mcp/issues"
+Changelog = "https://github.com/noscn/strict-semantic-mcp/blob/main/docs/REVISIONS.md"
+
 [project.scripts]
 strict-semantic = "strict_semantic.cli:main"
 strict-semantic-mcp = "strict_semantic.mcp_server.server:main"
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
