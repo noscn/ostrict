@@ -56,6 +56,8 @@ Query governed business metrics without writing SQL.
    [{{"field": ..., "op": ..., "value": ...}}]. Ops: {", ".join(FILTER_OPS)}.
 3. compile_semantic_query shows the SQL and scan estimate without running it.
 4. get_dimension_values resolves exact categorical values (never dump raw rows).
+In answers that mix metrics from different fact tables, a NULL metric cell means
+that fact had no rows for that group (no activity), not an error.
 Every refusal names an error code and how to fix the request — repair and retry.
 """
 
@@ -79,13 +81,30 @@ class _State:
             no_pk_tables=tuple(lint_cfg.get("no_pk_tables") or ()),
             no_primary_date_tables=tuple(lint_cfg.get("no_primary_date_tables") or ()),
         )
+        self._views_cache: dict[str, SemanticView] | None = None
+        self._views_key: tuple | None = None
+
+    def _views_fingerprint(self) -> tuple:
+        # mirrors load_views' glob so any add/remove/edit of a spec invalidates
+        p = self.views_path
+        files = (
+            [f for f in sorted(p.iterdir()) if f.suffix.lower() in (".sql", ".yml", ".yaml")]
+            if p.is_dir() else [p]
+        )
+        return tuple((str(f), (st := f.stat()).st_mtime_ns, st.st_size) for f in files)
 
     def views(self) -> dict[str, SemanticView]:
-        # reloaded per call so spec edits apply without a server restart
-        if self.views_path.is_dir():
-            return load_views(self.views_path)
-        v = load_view(self.views_path)
-        return {v.name: v}
+        # spec edits still apply without a restart: files are stat-ed per call,
+        # but only re-parsed when something actually changed
+        key = self._views_fingerprint()
+        if self._views_cache is None or key != self._views_key:
+            if self.views_path.is_dir():
+                self._views_cache = load_views(self.views_path)
+            else:
+                v = load_view(self.views_path)
+                self._views_cache = {v.name: v}
+            self._views_key = key
+        return self._views_cache
 
     def view(self, name: str) -> SemanticView:
         views = self.views()
