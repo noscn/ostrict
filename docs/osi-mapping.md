@@ -123,7 +123,10 @@ interpret them.
 - `strict-semantic import` writes the native YAML contract. Explicit keys are
   emitted only where the description carries no equivalent directive; an
   enumeration that exists only as OSI `values` is appended to the comment as a
-  `Values:` directive, the one slot the native format has for it.
+  `Values:` directive, the one slot the native format has for it. A value that
+  grammar cannot express (it contains a comma or a period, or has surrounding
+  whitespace) is refused with `ERR_PARSE` rather than written back as
+  different values — in memory, via `import_osi`, such values work fine.
 
 ## CLI
 

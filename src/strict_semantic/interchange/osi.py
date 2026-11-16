@@ -395,8 +395,11 @@ def to_native_yaml(view: SemanticView) -> str:
     ``load_view`` of the result rebuilds an equal view, with one exception: an
     enumeration that exists only as OSI ``values`` (no ``Values:`` directive in
     the comment) is appended to the comment as a directive — the only slot the
-    native format has for it. Explicit keys are emitted only where the comment
-    carries no directive, so hand-written-style specs stay minimal.
+    native format has for it. A value that grammar cannot carry (one containing
+    a comma or a period, or padded with whitespace) is refused with
+    ``ERR_PARSE`` rather than written back as different values. Explicit keys
+    are emitted only where the comment carries no directive, so
+    hand-written-style specs stay minimal.
     """
     doc: dict = {"name": view.name, "dialect": view.dialect}
     if view.comment:
@@ -448,6 +451,14 @@ def to_native_yaml(view: SemanticView) -> str:
             e = {"expr": d.expr}
             comment = d.comment
             if d.values and not _VALUES.search(comment):
+                for v in d.values:
+                    if not v or "," in v or "." in v or v != v.strip():
+                        raise CompilerError(
+                            ERR_PARSE,
+                            f"dimension {d.table}.{d.name}: value '{v}' cannot be written as a "
+                            "'Values:' comment directive (commas and periods delimit the native "
+                            "grammar); rename the value or drop the enumeration",
+                        )
                 comment = (comment.rstrip() + " " if comment.strip() else "") + "Values: " + ", ".join(d.values) + "."
             if d.synonyms:
                 e["synonyms"] = list(d.synonyms)

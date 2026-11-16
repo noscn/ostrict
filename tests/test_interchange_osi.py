@@ -10,7 +10,7 @@ import yaml
 from conftest import FIXTURES, JAN
 
 from strict_semantic.compiler import compile_semantic_query
-from strict_semantic.interchange import export_osi, import_osi
+from strict_semantic.interchange import export_osi, import_osi, to_native_yaml
 from strict_semantic.models.errors import CompilerError
 from strict_semantic.parsers import load_view
 
@@ -93,3 +93,19 @@ def test_cli_export_and_import_end_to_end(tmp_path):
     run = subprocess.run([*cli, "import", str(bad), "--no-lint", "-o", str(rejected)], capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
     assert rejected.exists()
+
+
+def test_native_emission_refuses_undirectable_values(view):
+    # the native 'Values: a, b.' grammar splits on commas and ends at a period, so a
+    # value containing either cannot be appended as a directive without reading back
+    # as different values; import keeps it in memory, native emission refuses it
+    doc = yaml.safe_load(export_osi(view, strip_extensions=True).text)
+    customers = next(d for d in doc["datasets"] if d["name"] == "customers")
+    region = next(f for f in customers["fields"] if f["name"] == "region")
+    region["description"] = "Customer home region."  # no Values: directive
+    region["values"] = ["Acme, Inc.", "US"]
+    imported = import_osi(yaml.safe_dump(doc, sort_keys=False))
+    assert next(d for d in imported.dimensions if d.name == "region").values == ("Acme, Inc.", "US")
+    with pytest.raises(CompilerError) as e:
+        to_native_yaml(imported)
+    assert e.value.code == "ERR_PARSE" and "Acme, Inc." in str(e.value)

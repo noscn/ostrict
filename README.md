@@ -50,7 +50,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 76 tests
+.venv/bin/python -m pytest                                  # 77 tests
 .venv/bin/strict-semantic lint tests/fixtures/ecommerce.sql
 .venv/bin/strict-semantic eval tests/fixtures/golden_questions.yaml
 .venv/bin/strict-semantic compile tests/fixtures/ecommerce.yaml \
