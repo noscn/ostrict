@@ -1,4 +1,4 @@
-"""Command line: `strict-semantic lint|compile|eval`."""
+"""Command line: `strict-semantic lint|compile|eval|export|import`."""
 
 from __future__ import annotations
 
@@ -69,6 +69,37 @@ def cmd_eval(args) -> int:
     return 0 if report.ok else 1
 
 
+def cmd_export(args) -> int:
+    from .interchange import export_osi
+
+    out = export_osi(load_view(args.view), fmt=args.format, strip_extensions=args.strip_extensions)
+    for w in out.warnings:
+        print(f"warning: {w}", file=sys.stderr)
+    if args.output:
+        Path(args.output).write_text(out.text)
+    else:
+        print(out.text, end="")
+    return 0
+
+
+def cmd_import(args) -> int:
+    from .interchange import import_osi, to_native_yaml
+
+    view = import_osi(Path(args.file), validate=False)
+    if not args.no_lint:
+        report = lint(view, _lint_config(args.config))
+        if report.findings:
+            print(report.render(), file=sys.stderr)
+        if not report.ok:
+            return 1  # ERROR findings refuse the conversion; --no-lint writes it for inspection
+    text = to_native_yaml(view)
+    if args.output:
+        Path(args.output).write_text(text)
+    else:
+        print(text, end="")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="strict-semantic")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -93,6 +124,24 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("cases", help="golden questions YAML file")
     sp.add_argument("--seed", default=None, help="SQL file to seed the DuckDB fixture database")
     sp.set_defaults(fn=cmd_eval)
+
+    sp = sub.add_parser("export", help="export a .sql/.yaml view as an OSI (Open Semantic Interchange) document")
+    sp.add_argument("view")
+    sp.add_argument("--format", choices=("yaml", "json"), default="yaml")
+    sp.add_argument("-o", "--output", default=None, help="output file (stdout if omitted)")
+    sp.add_argument(
+        "--strip-extensions",
+        action="store_true",
+        help="emit vanilla OSI without custom_extensions; stripped guardrails are warned to stderr",
+    )
+    sp.set_defaults(fn=cmd_export)
+
+    sp = sub.add_parser("import", help="convert an OSI YAML/JSON file to the native spec (linted by default)")
+    sp.add_argument("file")
+    sp.add_argument("-o", "--output", default=None, help="output file (stdout if omitted)")
+    sp.add_argument("--no-lint", action="store_true", help="skip the SV-R1..R10 gate, for inspection only")
+    sp.add_argument("--config", default=None, help="strict_semantic.yml whose lint: section to apply")
+    sp.set_defaults(fn=cmd_import)
 
     args = p.parse_args(argv)
     try:

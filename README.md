@@ -2,12 +2,11 @@
 
 [![CI](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml)
 
-**A CI linter for Snowflake-style semantic views, and a deterministic, FinOps-safe
-semantic compiler + MCP server for AI data agents on BigQuery, DuckDB, Snowflake
-and Postgres.**
+**A strict CI linter for semantic views, and a deterministic, FinOps-safe
+semantic compiler + MCP server for AI data agents.**
 
-Data warehouses like BigQuery have no native, strictly-enforced semantic views.
-When text-to-SQL agents query them through loose YAML or flexible graph layers,
+Most data warehouses have no native, strictly-enforced semantic views. When
+text-to-SQL agents query them through loose YAML or flexible graph layers,
 the failure modes are always the same: non-deterministic SQL, fan-out double
 counting, ambiguous join paths, raw-row dumps, and runaway scan costs.
 
@@ -19,8 +18,8 @@ This project makes the semantic model a **blueprint, never a materialization**:
         ──compile(request)──▶ one deterministic SQL statement ──connector──▶ rows
 ```
 
-- **Dual input, one AST.** Snowflake `CREATE SEMANTIC VIEW` DDL (human-authored)
-  and a native YAML contract (automation-friendly) build byte-identical models.
+- **Dual input, one AST.** `CREATE SEMANTIC VIEW` DDL (human-authored) and a
+  native YAML contract (automation-friendly) build byte-identical models.
 - **Static ground rules (SV-R1..R10).** Primary keys and grain comments, a
   directed many-to-one join DAG with exactly one path between any two tables,
   no numeric dimensions, no `CURRENT_DATE`, snapshot metrics declared
@@ -40,6 +39,10 @@ This project makes the semantic model a **blueprint, never a materialization**:
   writes SQL; every refusal carries an error code and a repair hint.
 - **Golden Questions eval.** `strict-semantic eval cases.yaml` grades
   answer/refuse/clarify cases against DuckDB deterministically — no LLM judge.
+- **OSI interchange.** `strict-semantic export|import` converts views to and
+  from Open Semantic Interchange YAML/JSON losslessly — guardrails travel in a
+  namespaced `custom_extensions.strict_semantic` block, and every import must
+  pass the full SV-R1..R10 gate.
 - **Open-core plugin hooks.** `on_model_loaded`, `before_compile` (RBAC filter
   injection), `after_compile` (cache/lineage), `on_query_executed` (audit).
 
@@ -47,7 +50,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 64 tests
+.venv/bin/python -m pytest                                  # 77 tests
 .venv/bin/strict-semantic lint tests/fixtures/ecommerce.sql
 .venv/bin/strict-semantic eval tests/fixtures/golden_questions.yaml
 .venv/bin/strict-semantic compile tests/fixtures/ecommerce.yaml \
@@ -73,9 +76,9 @@ your private spec folder, and set `max_bytes`.
 
 ## Writing a semantic view
 
-Snowflake DDL (`.sql`) and the native YAML (`.yml`) are equivalent; metadata the
-DDL has no slot for travels in structured comment directives (enforced by the
-linter as SV-R8.1 templates):
+The `CREATE SEMANTIC VIEW` DDL (`.sql`) and the native YAML (`.yml`) are
+equivalent; metadata the DDL has no slot for travels in structured comment
+directives (enforced by the linter as SV-R8.1 templates):
 
 ```sql
 CREATE SEMANTIC VIEW ecommerce
@@ -115,12 +118,33 @@ aggregation, filters on metrics after. Dimension-only queries are refused
 (`ERR_METRIC_REQUIRED`) — value discovery goes through `get_dimension_values`,
 a bounded `SELECT DISTINCT … LIMIT ≤ 50`.
 
+## OSI interchange
+
+Exchange views with other semantic-layer tools as OSI (Open Semantic
+Interchange) documents:
+
+```bash
+strict-semantic export tests/fixtures/ecommerce.sql -o ecommerce.osi.yaml
+strict-semantic export tests/fixtures/ecommerce.yaml --format json --strip-extensions
+strict-semantic import ecommerce.osi.yaml -o views/imported.yaml
+```
+
+Exports are lossless: strict-semantic guardrails (dialect, partition pruning
+bounds, snapshot flags, time types) ride in `custom_extensions.strict_semantic`
+blocks, and an export → import round-trip rebuilds an equal AST.
+`--strip-extensions` emits vanilla OSI instead and warns on stderr for every
+guardrail that drops out. Imports are gated: the document is linted
+(SV-R1..R10) before it is written as a native spec, so external models cannot
+bypass the ground rules (`--no-lint` converts anyway, for inspection). The
+field-by-field mapping lives in [docs/osi-mapping.md](docs/osi-mapping.md).
+
 ## Layout
 
 ```
 src/strict_semantic/
 ├── models/        # canonical AST, error codes, request/response contracts
-├── parsers/       # Snowflake DDL (token-stream) + native YAML -> one builder
+├── parsers/       # CREATE SEMANTIC VIEW DDL (token-stream) + native YAML -> one builder
+├── interchange/   # OSI (Open Semantic Interchange) export/import adapter
 ├── linter/        # SV-R1..R10 engine: structure / logic / governance rules
 ├── compiler/      # join-graph resolver, FinOps guardrails, sqlglot SQL builder
 ├── connectors/    # DuckDB, BigQuery (dry-run + byte cap), protocol

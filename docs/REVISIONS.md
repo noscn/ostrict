@@ -92,3 +92,26 @@ tests) is as specified.
   deterministically; BigQuery connector implements dry-run estimation.
 - Section 9's ten golden tests exist under their exact names in
   `tests/test_golden.py` — all passing. Full suite: 63 tests, ruff clean.
+
+# v0.2.0 — OSI interchange (docs/osi-mapping.md)
+
+The bidirectional OSI adapter implements its blueprint as specified, with
+three clarifications:
+
+15. **The OSI field names are this project's own pinning.** The public Open
+    Semantic Interchange spec still has no published schema to verify against
+    (see item 1), so `interchange/osi.py` implements the contract documented in
+    `docs/osi-mapping.md`. Strict-semantic guardrails travel
+    in namespaced `custom_extensions.strict_semantic` blocks at the document,
+    dataset and field level; `--strip-extensions` produces vanilla OSI plus a
+    warning for every guardrail that drops out.
+16. **Facts and dimensions regroup by dataset on round-trip.** OSI nests
+    fields under datasets, so a view whose facts/dimensions interleave across
+    tables comes back regrouped in table order (order within a table is
+    preserved). Compilation is unaffected — resolution is by name — and the
+    twin fixtures round-trip to byte-identical ASTs.
+17. **`values` reconciles outside `build_view`.** The shared raw shape has no
+    explicit enumeration key (the native format expresses it only as a
+    `Values:` directive), so OSI `fields[].values` apply after construction
+    with `_merge`'s agree-or-fail semantics, and `to_native_yaml` appends the
+    directive when only the OSI field carried the enumeration.
