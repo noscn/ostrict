@@ -93,15 +93,15 @@ tests) is as specified.
 - Section 9's ten golden tests exist under their exact names in
   `tests/test_golden.py` — all passing. Full suite: 63 tests, ruff clean.
 
-# v0.2.0 — OSI interchange (docs/osi-interoperability-blueprint.md)
+# v0.2.0 — OSI interchange (docs/osi-mapping.md)
 
 The bidirectional OSI adapter implements its blueprint as specified, with
 three clarifications:
 
-15. **The OSI field names are the blueprint's own pinning.** The public Open
+15. **The OSI field names are this project's own pinning.** The public Open
     Semantic Interchange spec still has no published schema to verify against
-    (see item 1), so `interchange/osi.py` targets the mapping tables in
-    `docs/osi-interoperability-blueprint.md`. Strict-semantic guardrails travel
+    (see item 1), so `interchange/osi.py` implements the contract documented in
+    `docs/osi-mapping.md`. Strict-semantic guardrails travel
     in namespaced `custom_extensions.strict_semantic` blocks at the document,
     dataset and field level; `--strip-extensions` produces vanilla OSI plus a
     warning for every guardrail that drops out.

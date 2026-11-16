@@ -95,8 +95,8 @@ is safe, and it shows up in everyone's catalog — see
 
 ## Contributing a metric (for maintainers)
 
-The semantic views are plain files (`.yml`, or Snowflake `CREATE SEMANTIC
-VIEW` DDL) kept in a repository. The loop:
+The semantic views are plain files (`.yml`, or `CREATE SEMANTIC VIEW` DDL
+`.sql`) kept in a repository. The loop:
 
 ```bash
 # 1. edit the view: add a dimension/metric with a comment, or a new table

@@ -1,6 +1,6 @@
 """Bidirectional OSI (Open Semantic Interchange) adapter.
 
-Mapping contract: ``docs/osi-interoperability-blueprint.md``. Standard OSI
+Mapping contract: ``docs/osi-mapping.md``. Standard OSI
 slots (datasets, fields, relationships, metrics) map 1:1 onto the canonical
 AST; strict-semantic guardrails that vanilla OSI has no slot for (dialect,
 partition pruning bounds, snapshot flags, time types) travel in a namespaced
