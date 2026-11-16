@@ -26,7 +26,6 @@ from ..models.query import Filter
 
 # upper-bound slack per grain: pruning windows must be a superset of the data asked for
 _GRAIN_DAYS = {"hour": 1, "day": 1, "week": 7, "month": 31, "quarter": 92, "year": 366}
-_LOWER_OPS = ("=", ">=", ">", "between")
 
 
 @dataclass(frozen=True)
@@ -92,6 +91,10 @@ def _bounds_from(filters: list[tuple[Dimension, str | None, Filter]], dimension:
                 uppers.append(_shift(str(v), slack))
         elif op in ("<", "<=") and _parse_iso(v):
             uppers.append(str(v))
+        elif op == "in" and isinstance(v, (list, tuple)) and v and all(_parse_iso(x) for x in v):
+            vals = sorted((str(x) for x in v), key=_parse_iso)
+            lowers.append(vals[0])
+            uppers.append(_shift(vals[-1], slack))
     return lowers, uppers
 
 
@@ -138,7 +141,7 @@ def partition_predicates(
         raise CompilerError(
             ERR_MISSING_PARTITION_FILTER,
             f"table '{table.name}' is partitioned; add a bounding filter on '{p.dimension}' "
-            "(=, >=, > or between with a date value)",
+            "(=, >=, >, between or in with date values)",
             hint=f"e.g. {{\"field\": \"{p.dimension}\", \"op\": \">=\", \"value\": \"2026-01-01\"}}",
         )
     col = exp.column(p.column, table=table.name)

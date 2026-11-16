@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
@@ -20,6 +21,24 @@ def _ensure_valid(view, lint_config):
     from ..linter import ensure_valid  # deferred: the linter itself uses compiler.resolver
 
     return ensure_valid(view, lint_config)
+
+
+def _notify_model_loaded(view: SemanticView, plugins: Iterable[CompilerPlugin]) -> None:
+    """Fire on_model_loaded once per (plugin instance, view object).
+
+    A reloaded spec is a new object, so it fires again — matching "model
+    loaded". Views are unhashable, so the memo is id-keyed with a weakref
+    guard against id reuse."""
+    for p in plugins:
+        seen: dict[int, weakref.ref] = p.__dict__.setdefault("_ss_models_seen", {})
+        ref = seen.get(id(view))
+        if ref is not None and ref() is view:
+            continue
+        if len(seen) > 64:  # prune refs whose views were garbage-collected
+            for k in [k for k, r in seen.items() if r() is None]:
+                del seen[k]
+        seen[id(view)] = weakref.ref(view)
+        p.on_model_loaded(view)
 
 __all__ = [
     "CompileConfig",
@@ -42,6 +61,7 @@ def compile_semantic_query(
     if isinstance(request, dict):
         request = SemanticQueryRequest.model_validate(request)
     _ensure_valid(view, lint_config)  # ERROR findings block compilation
+    _notify_model_loaded(view, plugins)
     for p in plugins:
         request = p.before_compile(view, request) or request
     compiled = build_query(view, request, dialect or view.dialect, config or CompileConfig())
@@ -57,13 +77,22 @@ def compile_dimension_values(
     filters: Iterable[Filter | dict] = (),
     limit: int = 50,
     dialect: str | None = None,
+    plugins: Iterable[CompilerPlugin] = (),
     config: CompileConfig | None = None,
     lint_config: LintConfig | None = None,
 ) -> CompiledQuery:
     _ensure_valid(view, lint_config)
     flts = [f if isinstance(f, Filter) else Filter.model_validate(f) for f in filters]
+    # Plugins see value lookups too, or RBAC filters injected in before_compile
+    # would not gate get_dimension_values. Hooks run on a synthetic request.
+    _notify_model_loaded(view, plugins)
+    request = SemanticQueryRequest(dimensions=[dimension], filters=flts, limit=limit)
+    for p in plugins:
+        request = p.before_compile(view, request) or request
     return build_dimension_values_query(
-        view, dimension, search, flts, limit, dialect or view.dialect, config or CompileConfig()
+        view, dimension, search, list(request.filters),
+        request.limit if request.limit is not None else limit,
+        dialect or view.dialect, config or CompileConfig(),
     )
 
 

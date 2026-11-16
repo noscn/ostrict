@@ -13,6 +13,8 @@ from ..models.query import CompiledQuery, QueryResult, SemanticQueryRequest
 
 class CompilerPlugin:
     def on_model_loaded(self, view: SemanticView) -> None:  # audit / registry
+        # Fires once per model object, before its first compile on this plugin;
+        # a reloaded spec is a new object and fires again.
         return None
 
     def before_compile(self, view: SemanticView, request: SemanticQueryRequest) -> SemanticQueryRequest:
