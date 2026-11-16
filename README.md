@@ -40,6 +40,10 @@ This project makes the semantic model a **blueprint, never a materialization**:
   writes SQL; every refusal carries an error code and a repair hint.
 - **Golden Questions eval.** `strict-semantic eval cases.yaml` grades
   answer/refuse/clarify cases against DuckDB deterministically — no LLM judge.
+- **OSI interchange.** `strict-semantic export|import` converts views to and
+  from Open Semantic Interchange YAML/JSON losslessly — guardrails travel in a
+  namespaced `custom_extensions.strict_semantic` block, and every import must
+  pass the full SV-R1..R10 gate.
 - **Open-core plugin hooks.** `on_model_loaded`, `before_compile` (RBAC filter
   injection), `after_compile` (cache/lineage), `on_query_executed` (audit).
 
@@ -47,7 +51,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 64 tests
+.venv/bin/python -m pytest                                  # 76 tests
 .venv/bin/strict-semantic lint tests/fixtures/ecommerce.sql
 .venv/bin/strict-semantic eval tests/fixtures/golden_questions.yaml
 .venv/bin/strict-semantic compile tests/fixtures/ecommerce.yaml \
@@ -115,12 +119,34 @@ aggregation, filters on metrics after. Dimension-only queries are refused
 (`ERR_METRIC_REQUIRED`) — value discovery goes through `get_dimension_values`,
 a bounded `SELECT DISTINCT … LIMIT ≤ 50`.
 
+## OSI interchange
+
+Exchange views with other semantic-layer tools as OSI (Open Semantic
+Interchange) documents:
+
+```bash
+strict-semantic export tests/fixtures/ecommerce.sql -o ecommerce.osi.yaml
+strict-semantic export tests/fixtures/ecommerce.yaml --format json --strip-extensions
+strict-semantic import ecommerce.osi.yaml -o views/imported.yaml
+```
+
+Exports are lossless: strict-semantic guardrails (dialect, partition pruning
+bounds, snapshot flags, time types) ride in `custom_extensions.strict_semantic`
+blocks, and an export → import round-trip rebuilds an equal AST.
+`--strip-extensions` emits vanilla OSI instead and warns on stderr for every
+guardrail that drops out. Imports are gated: the document is linted
+(SV-R1..R10) before it is written as a native spec, so external models cannot
+bypass the ground rules (`--no-lint` converts anyway, for inspection). The
+field-by-field mapping lives in
+[docs/osi-interoperability-blueprint.md](docs/osi-interoperability-blueprint.md).
+
 ## Layout
 
 ```
 src/strict_semantic/
 ├── models/        # canonical AST, error codes, request/response contracts
 ├── parsers/       # Snowflake DDL (token-stream) + native YAML -> one builder
+├── interchange/   # OSI (Open Semantic Interchange) export/import adapter
 ├── linter/        # SV-R1..R10 engine: structure / logic / governance rules
 ├── compiler/      # join-graph resolver, FinOps guardrails, sqlglot SQL builder
 ├── connectors/    # DuckDB, BigQuery (dry-run + byte cap), protocol
