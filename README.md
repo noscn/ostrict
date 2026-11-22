@@ -42,6 +42,11 @@ This project makes the semantic model a **blueprint, never a materialization**:
   writes SQL; every refusal carries an error code and a repair hint.
 - **Golden Questions eval.** `ostrict eval cases.yaml` grades
   answer/refuse/clarify cases against DuckDB deterministically — no LLM judge.
+- **Scaffolding.** `ostrict scaffold --from-dbt <project>` (or `--connector`
+  for a live schema) drafts a view that passes SV-R1..R10 on its first lint:
+  deny-listed columns dropped, keys kept out of dimensions, colliding names
+  prefixed, the join graph kept to a forest — everything else lands as
+  `# TODO` comments for a human.
 - **OSI interchange.** `ostrict export|import` converts views to and
   from Open Semantic Interchange YAML/JSON losslessly — guardrails travel in a
   namespaced `custom_extensions.strict_semantic` block, and every import must
@@ -53,7 +58,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 80 tests
+.venv/bin/python -m pytest                                  # 84 tests
 .venv/bin/ostrict lint tests/fixtures/ecommerce.sql
 .venv/bin/ostrict eval tests/fixtures/golden_questions.yaml
 .venv/bin/ostrict compile tests/fixtures/ecommerce.yaml \
@@ -107,6 +112,25 @@ Directives: `One row per …` (grain), `Primary date: col.`,
 `Grains: day, month.`, `Type: timestamp.`, `Values: a, b, c.`
 See `tests/fixtures/ecommerce.{sql,yaml}` for the full twin fixtures.
 
+## Scaffolding a view
+
+Don't start from a blank file — draft one from what you already have:
+
+```bash
+ostrict scaffold --from-dbt path/to/dbt_project --models orders,customers -o views/draft.yml
+ostrict scaffold --connector config.duckdb.yml --models shop.orders,shop.customers --sample-values
+```
+
+dbt mode reads `manifest.json` or the project directory (descriptions,
+`unique` tests as primary keys, `relationships` tests as joins, `partition_by`
+as a conservative partition hint) and never touches the warehouse. Connector
+mode reads `INFORMATION_SCHEMA` instead and guesses keys and joins from `*_id`
+naming; `--sample-values` additionally runs a bounded
+`SELECT DISTINCT … LIMIT 21` per text column to fill `Values:` lists. The
+draft is linted at generation time; anything the ground rules would reject — a
+second join path, a deny-listed column — becomes a `# TODO` comment instead,
+so `ostrict scaffold`'s output is accepted by `ostrict lint` with zero errors.
+
 ## Querying
 
 ```json
@@ -148,6 +172,7 @@ src/ostrict/
 ├── models/        # canonical AST, error codes, request/response contracts
 ├── parsers/       # CREATE SEMANTIC VIEW DDL (token-stream) + native YAML -> one builder
 ├── interchange/   # OSI (Open Semantic Interchange) export/import adapter
+├── scaffold/      # draft views from dbt metadata or INFORMATION_SCHEMA
 ├── linter/        # SV-R1..R10 engine: structure / logic / governance rules
 ├── compiler/      # join-graph resolver, FinOps guardrails, sqlglot SQL builder
 ├── connectors/    # DuckDB, BigQuery (dry-run + byte cap), protocol
