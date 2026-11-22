@@ -60,6 +60,12 @@ This project makes the semantic model a **blueprint, never a materialization**:
 ## Quickstart
 
 ```bash
+pip install "ostrict[mcp,bigquery]"    # or [mcp,duckdb] for local demos, [ui] for the studio
+```
+
+Or from source, with the full test suite:
+
+```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
 .venv/bin/python -m pytest                                  # 93 tests
 .venv/bin/ostrict lint tests/fixtures/ecommerce.sql
@@ -87,8 +93,8 @@ your private spec folder, and set `max_bytes`.
 
 ## Writing a semantic view
 
-The `CREATE SEMANTIC VIEW` DDL (`.sql`) and the native YAML (`.yml`) are
-equivalent; metadata the DDL has no slot for travels in structured comment
+The `CREATE SEMANTIC VIEW` DDL (`.sql`) and the native YAML (`.yaml` / `.yml`)
+are equivalent; metadata the DDL has no slot for travels in structured comment
 directives (enforced by the linter as SV-R8.1 templates):
 
 ```sql

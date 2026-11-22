@@ -99,17 +99,22 @@ The semantic views are plain files (`.yml`, or `CREATE SEMANTIC VIEW` DDL
 `.sql`) kept in a repository. The loop:
 
 ```bash
-# 1. edit the view: add a dimension/metric with a comment, or a new table
+# 1. starting a new view? draft it from your dbt project instead of a blank file
+ostrict scaffold --from-dbt path/to/dbt_project --models orders,customers -o views/sales.yml
+
+# 2. edit the view: add a dimension/metric with a comment, or a new table
 $EDITOR views/sales.yml
 
-# 2. lint — every ground rule (SV-R1..R10) runs here, same as CI
+# 3. lint — every ground rule (SV-R1..R10) runs here, same as CI — or keep
+#    `ostrict ui views --config ostrict.yml` open to watch the join graph and
+#    findings update live as you save
 ostrict lint views --config ostrict.yml
 
-# 3. see the SQL a request would produce (nothing executes)
+# 4. see the SQL a request would produce (nothing executes)
 ostrict compile views/sales.yml -m my_new_metric -d region \
     -f '{"field":"order_date","op":">=","value":"2026-01-01"}' --dialect bigquery
 
-# 4. add a golden question with the expected answer, and run the eval
+# 5. add a golden question with the expected answer, and run the eval
 ostrict eval golden_questions.yaml
 ```
 
