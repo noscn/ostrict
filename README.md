@@ -32,6 +32,10 @@ This project makes the semantic model a **blueprint, never a materialization**:
   only walk child→parent (zero fan-out, enforced); metrics of different grains
   drill across via `UNION ALL`; derived ratios divide NULL-safely; every
   expression is built as a sqlglot AST — no string concatenation anywhere.
+- **One definition, any warehouse — zero lock-in.** The same view file runs
+  free on local DuckDB, exchanges via OSI, and compiles unchanged for
+  BigQuery, Snowflake or Postgres; partition bounds land inside each table's
+  own subquery on every dialect.
 - **FinOps guardrails.** At least one metric per query (no raw dumps),
   partition filters required and pushed into each table's subquery (the only
   placement BigQuery honors on joined tables), `LIMIT` injected and capped,
@@ -60,7 +64,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 ## Quickstart
 
 ```bash
-pip install "ostrict[mcp,bigquery]"    # or [mcp,duckdb] for local demos, [ui] for the studio
+pip install "ostrict[mcp,duckdb]"    # zero-cloud local demo; add [bigquery] for warehouses, [ui] for the studio
 ```
 
 Or from source, with the full test suite:
@@ -73,7 +77,8 @@ python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
 .venv/bin/ostrict compile tests/fixtures/ecommerce.yaml \
     -m revenue -m aov -d region \
     -f '{"field":"order_date","op":">=","value":"2026-01-01"}' \
-    -f '{"field":"order_date","op":"<","value":"2026-02-01"}' --dialect bigquery
+    -f '{"field":"order_date","op":"<","value":"2026-02-01"}' \
+    --dialect bigquery    # same request compiles for snowflake | postgres | duckdb too
 ```
 
 Run the MCP server against the demo warehouse (in-memory DuckDB):
