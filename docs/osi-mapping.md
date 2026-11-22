@@ -1,14 +1,16 @@
 # OSI mapping
 
-How `strict-semantic export` / `strict-semantic import` (and the
-`strict_semantic.interchange` API) map OSI (Open Semantic Interchange)
-documents onto the canonical `SemanticView` AST.
+How `ostrict export` / `ostrict import` (and the `ostrict.interchange` API)
+map OSI (Open Semantic Interchange) documents onto the canonical
+`SemanticView` AST.
 
 The public OSI initiative has not published a schema to verify against, so this
 document is the contract this project emits and accepts. Standard OSI slots
 map 1:1 onto the AST; guardrails that vanilla OSI has no slot for ride in a
 namespaced `custom_extensions.strict_semantic` block at the document, dataset
-and field level. An export → import round-trip rebuilds an equal view.
+and field level — the namespace keeps its pre-rename spelling, so documents
+exported by strict-semantic-mcp 0.2.x import unchanged. An export → import
+round-trip rebuilds an equal view.
 
 ## Document shape
 
@@ -99,12 +101,12 @@ identical by construction:
   set by either source.
 - Every import passes the full SV-R1..R10 gate (`ensure_valid`) by default —
   an external model cannot bypass the ground rules. `import_osi(...,
-  validate=False)` / `strict-semantic import --no-lint` skip it for inspection;
+  validate=False)` / `ostrict import --no-lint` skip it for inspection;
   the CLI otherwise refuses with exit 1 and writes nothing on ERROR findings.
 
 ## Stripped exports
 
-`export_osi(view, strip_extensions=True)` / `strict-semantic export
+`export_osi(view, strip_extensions=True)` / `ostrict export
 --strip-extensions` emits vanilla OSI: every `custom_extensions` block is
 omitted, and one warning is returned (printed to stderr by the CLI) per
 guardrail that drops out — a non-default dialect, primary dates, snapshot
@@ -120,7 +122,7 @@ interpret them.
 - OSI nests facts/dimensions under datasets, so a view whose fields interleave
   across tables round-trips with them regrouped in table order; order within a
   table is preserved, and compilation — which resolves by name — is unaffected.
-- `strict-semantic import` writes the native YAML contract. Explicit keys are
+- `ostrict import` writes the native YAML contract. Explicit keys are
   emitted only where the description carries no equivalent directive; an
   enumeration that exists only as OSI `values` is appended to the comment as a
   `Values:` directive, the one slot the native format has for it. A value that
@@ -131,7 +133,7 @@ interpret them.
 ## CLI
 
 ```bash
-strict-semantic export views/sales.yml -o sales.osi.yaml
-strict-semantic export views/sales.sql --format json --strip-extensions
-strict-semantic import sales.osi.yaml -o views/imported.yml   # linted by default
+ostrict export views/sales.yml -o sales.osi.yaml
+ostrict export views/sales.sql --format json --strip-extensions
+ostrict import sales.osi.yaml -o views/imported.yml   # linted by default
 ```

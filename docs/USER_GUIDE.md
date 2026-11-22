@@ -103,14 +103,14 @@ The semantic views are plain files (`.yml`, or `CREATE SEMANTIC VIEW` DDL
 $EDITOR views/sales.yml
 
 # 2. lint — every ground rule (SV-R1..R10) runs here, same as CI
-strict-semantic lint views --config strict_semantic.yml
+ostrict lint views --config ostrict.yml
 
 # 3. see the SQL a request would produce (nothing executes)
-strict-semantic compile views/sales.yml -m my_new_metric -d region \
+ostrict compile views/sales.yml -m my_new_metric -d region \
     -f '{"field":"order_date","op":">=","value":"2026-01-01"}' --dialect bigquery
 
 # 4. add a golden question with the expected answer, and run the eval
-strict-semantic eval golden_questions.yaml
+ostrict eval golden_questions.yaml
 ```
 
 Rules of thumb the linter will hold you to: every table declares its key and

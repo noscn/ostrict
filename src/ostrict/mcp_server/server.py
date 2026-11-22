@@ -4,8 +4,9 @@ The agent only ever picks names from the catalog — it never writes SQL — and
 every refusal carries its error code and a repair hint, raised as ToolError so
 the model actually sees it (mcp 2.x shows generic text for other exceptions).
 
-Config file (path in STRICT_SEMANTIC_CONFIG, default ./strict_semantic.yml;
-relative paths resolve against the config file's folder):
+Config file (path in OSTRICT_CONFIG — STRICT_SEMANTIC_CONFIG is honored as a
+pre-rename fallback — default ./ostrict.yml; relative paths resolve against
+the config file's folder):
 
     views: ./views                   # a folder of specs, or one .sql/.yaml file
     connector:
@@ -64,7 +65,11 @@ Every refusal names an error code and how to fix the request — repair and retr
 
 class _State:
     def __init__(self) -> None:
-        path = Path(os.environ.get("STRICT_SEMANTIC_CONFIG", "strict_semantic.yml")).resolve()
+        path = Path(
+            os.environ.get("OSTRICT_CONFIG")
+            or os.environ.get("STRICT_SEMANTIC_CONFIG")  # pre-rename name, still honored
+            or "ostrict.yml"
+        ).resolve()
         cfg = yaml.safe_load(path.read_text()) or {}
         self.base = path.parent
         self.views_path = self.base / cfg.get("views", "views")
@@ -149,7 +154,7 @@ def _jsonable(v: Any) -> Any:
     return v
 
 
-server = MCPServer(name="strict-semantic", instructions=INSTRUCTIONS)
+server = MCPServer(name="ostrict", instructions=INSTRUCTIONS)
 
 
 @server.tool()

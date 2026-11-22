@@ -1,4 +1,4 @@
-"""Command line: `strict-semantic lint|compile|eval|export|import`."""
+"""Command line: `ostrict lint|compile|eval|export|import`."""
 
 from __future__ import annotations
 
@@ -101,7 +101,7 @@ def cmd_import(args) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="strict-semantic")
+    p = argparse.ArgumentParser(prog="ostrict")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("lint", help="lint semantic view files or folders (SV-R1..R10)")

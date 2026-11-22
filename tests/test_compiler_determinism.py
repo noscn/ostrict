@@ -5,10 +5,10 @@ import pytest
 import sqlglot
 from conftest import FIXTURES, JAN
 
-from strict_semantic.compiler import compile_semantic_query
-from strict_semantic.models.errors import CompilerError
-from strict_semantic.parsers import load_view
-from strict_semantic.parsers.common import build_view
+from ostrict.compiler import compile_semantic_query
+from ostrict.models.errors import CompilerError
+from ostrict.parsers import load_view
+from ostrict.parsers.common import build_view
 
 REQUEST = {
     "metrics": ["revenue", "order_count", "aov"],

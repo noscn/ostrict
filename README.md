@@ -1,9 +1,12 @@
-# strict-semantic-mcp
+# ostrict
 
-[![CI](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/noscn/strict-semantic-mcp/actions/workflows/ci.yml)
+[![CI](https://github.com/noscn/ostrict/actions/workflows/ci.yml/badge.svg)](https://github.com/noscn/ostrict/actions/workflows/ci.yml)
 
 **A strict CI linter for semantic views, and a deterministic, FinOps-safe
 semantic compiler + MCP server for AI data agents.**
+
+*Ostrict* = **O**SI + **strict**. Unlike the myth, Ostrict never buries its
+head in the sand when AI hallucinates SQL.
 
 Most data warehouses have no native, strictly-enforced semantic views. When
 text-to-SQL agents query them through loose YAML or flexible graph layers,
@@ -24,7 +27,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
   directed many-to-one join DAG with exactly one path between any two tables,
   no numeric dimensions, no `CURRENT_DATE`, snapshot metrics declared
   `NON ADDITIVE BY`, globally unique field names and synonyms, a security
-  deny-list, comment templates. `strict-semantic lint` blocks CI on ERRORs.
+  deny-list, comment templates. `ostrict lint` blocks CI on ERRORs.
 - **Deterministic compilation.** Same request, same SQL, byte for byte. Joins
   only walk child→parent (zero fan-out, enforced); metrics of different grains
   drill across via `UNION ALL`; derived ratios divide NULL-safely; every
@@ -37,9 +40,9 @@ This project makes the semantic model a **blueprint, never a materialization**:
   `inspect_semantic_view`, `get_dimension_values`, `compile_semantic_query`,
   `execute_semantic_query`. The agent picks names from the catalog and never
   writes SQL; every refusal carries an error code and a repair hint.
-- **Golden Questions eval.** `strict-semantic eval cases.yaml` grades
+- **Golden Questions eval.** `ostrict eval cases.yaml` grades
   answer/refuse/clarify cases against DuckDB deterministically — no LLM judge.
-- **OSI interchange.** `strict-semantic export|import` converts views to and
+- **OSI interchange.** `ostrict export|import` converts views to and
   from Open Semantic Interchange YAML/JSON losslessly — guardrails travel in a
   namespaced `custom_extensions.strict_semantic` block, and every import must
   pass the full SV-R1..R10 gate.
@@ -50,10 +53,10 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 77 tests
-.venv/bin/strict-semantic lint tests/fixtures/ecommerce.sql
-.venv/bin/strict-semantic eval tests/fixtures/golden_questions.yaml
-.venv/bin/strict-semantic compile tests/fixtures/ecommerce.yaml \
+.venv/bin/python -m pytest                                  # 80 tests
+.venv/bin/ostrict lint tests/fixtures/ecommerce.sql
+.venv/bin/ostrict eval tests/fixtures/golden_questions.yaml
+.venv/bin/ostrict compile tests/fixtures/ecommerce.yaml \
     -m revenue -m aov -d region \
     -f '{"field":"order_date","op":">=","value":"2026-01-01"}' \
     -f '{"field":"order_date","op":"<","value":"2026-02-01"}' --dialect bigquery
@@ -62,13 +65,13 @@ python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
 Run the MCP server against the demo warehouse (in-memory DuckDB):
 
 ```bash
-STRICT_SEMANTIC_CONFIG=$PWD/examples/config.duckdb.yml .venv/bin/strict-semantic-mcp
+OSTRICT_CONFIG=$PWD/examples/config.duckdb.yml .venv/bin/ostrict-mcp
 ```
 
 or register it with Claude Code:
 
 ```bash
-claude mcp add strict-semantic -e STRICT_SEMANTIC_CONFIG=$PWD/examples/config.duckdb.yml -- $PWD/.venv/bin/strict-semantic-mcp
+claude mcp add ostrict -e OSTRICT_CONFIG=$PWD/examples/config.duckdb.yml -- $PWD/.venv/bin/ostrict-mcp
 ```
 
 For BigQuery, copy `examples/config.bigquery.example.yml`, point `views:` at
@@ -124,9 +127,9 @@ Exchange views with other semantic-layer tools as OSI (Open Semantic
 Interchange) documents:
 
 ```bash
-strict-semantic export tests/fixtures/ecommerce.sql -o ecommerce.osi.yaml
-strict-semantic export tests/fixtures/ecommerce.yaml --format json --strip-extensions
-strict-semantic import ecommerce.osi.yaml -o views/imported.yaml
+ostrict export tests/fixtures/ecommerce.sql -o ecommerce.osi.yaml
+ostrict export tests/fixtures/ecommerce.yaml --format json --strip-extensions
+ostrict import ecommerce.osi.yaml -o views/imported.yaml
 ```
 
 Exports are lossless: strict-semantic guardrails (dialect, partition pruning
@@ -141,7 +144,7 @@ field-by-field mapping lives in [docs/osi-mapping.md](docs/osi-mapping.md).
 ## Layout
 
 ```
-src/strict_semantic/
+src/ostrict/
 ├── models/        # canonical AST, error codes, request/response contracts
 ├── parsers/       # CREATE SEMANTIC VIEW DDL (token-stream) + native YAML -> one builder
 ├── interchange/   # OSI (Open Semantic Interchange) export/import adapter
@@ -182,8 +185,18 @@ Scope is deliberately strict and minimal — read
 determinism is non-negotiable, escape hatches get declined, and extensions
 belong in plugins.
 
+## Renamed from strict-semantic-mcp
+
+v0.3.0 renamed the project to **ostrict**. Old integrations keep working:
+`import strict_semantic` is a deprecated alias of `ostrict` (same module
+objects), the `strict-semantic` / `strict-semantic-mcp` entry points remain,
+and `STRICT_SEMANTIC_CONFIG` is honored when `OSTRICT_CONFIG` is unset. The
+OSI extension namespace stays `custom_extensions.strict_semantic`, so 0.2.x
+documents import unchanged. On PyPI, new releases ship as `ostrict`;
+`strict-semantic-mcp` stays at 0.2.0.
+
 ## License
 
 Apache 2.0 (see [LICENSE](LICENSE) and [NOTICE](NOTICE)). Fixtures and examples
 are a generic e-commerce schema; keep your company's semantic views in a
-private repository and point the server at them via `STRICT_SEMANTIC_CONFIG`.
+private repository and point the server at them via `OSTRICT_CONFIG`.
