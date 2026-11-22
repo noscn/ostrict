@@ -18,10 +18,14 @@ def _lint_config(path: str | None) -> LintConfig | None:
     if not path:
         return None
     cfg = (yaml.safe_load(Path(path).read_text()) or {}).get("lint") or {}
+    kwargs = {}
+    if cfg.get("security_deny"):  # extend/replace the default deny-list from config
+        kwargs["security_deny"] = tuple(cfg["security_deny"])
     return LintConfig(
         security_allowlist=tuple(cfg.get("security_allowlist") or ()),
         no_pk_tables=tuple(cfg.get("no_pk_tables") or ()),
         no_primary_date_tables=tuple(cfg.get("no_primary_date_tables") or ()),
+        **kwargs,
     )
 
 
@@ -116,6 +120,9 @@ def cmd_scaffold(args) -> int:
         name=args.name,
         dialect=args.dialect,
         sample_values=args.sample_values,
+        catalog=args.catalog,
+        lint_config=_lint_config(args.config),
+        infer_types=args.infer_types,
     )
     for n in result.notes:
         print(f"note: {n}", file=sys.stderr)
@@ -174,7 +181,14 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("scaffold", help="draft a semantic view YAML from a dbt project or a warehouse schema")
     sp.add_argument("--from-dbt", default=None, help="dbt manifest.json or project directory")
     sp.add_argument("--connector", default=None, help="config YAML whose connector: section to read the schema with")
-    sp.add_argument("--models", default=None, help="comma-separated models/tables to include")
+    sp.add_argument("--models", default=None,
+                    help="comma-separated models/tables; dbt mode also takes globs (int_dw_*) and tag:<name>")
+    sp.add_argument("--catalog", default=None,
+                    help="dbt catalog.json for column types (auto-discovered next to the manifest / in target/)")
+    sp.add_argument("--config", default=None,
+                    help="ostrict.yml whose lint: section (security_deny/allowlist, exemptions) to apply")
+    sp.add_argument("--infer-types", action="store_true",
+                    help="draft untyped *At/_at/*Date/_date columns as time dimensions (labeled in the header)")
     sp.add_argument("--name", default=None, help="semantic view name (default: project or schema name)")
     sp.add_argument("--dialect", default=None, help="bigquery | duckdb | snowflake | postgres")
     sp.add_argument(

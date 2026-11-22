@@ -58,7 +58,7 @@ This project makes the semantic model a **blueprint, never a materialization**:
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 84 tests
+.venv/bin/python -m pytest                                  # 87 tests
 .venv/bin/ostrict lint tests/fixtures/ecommerce.sql
 .venv/bin/ostrict eval tests/fixtures/golden_questions.yaml
 .venv/bin/ostrict compile tests/fixtures/ecommerce.yaml \
@@ -121,15 +121,26 @@ ostrict scaffold --from-dbt path/to/dbt_project --models orders,customers -o vie
 ostrict scaffold --connector config.duckdb.yml --models shop.orders,shop.customers --sample-values
 ```
 
-dbt mode reads `manifest.json` or the project directory (descriptions,
-`unique` tests as primary keys, `relationships` tests as joins, `partition_by`
-as a conservative partition hint) and never touches the warehouse. Connector
-mode reads `INFORMATION_SCHEMA` instead and guesses keys and joins from `*_id`
-naming; `--sample-values` additionally runs a bounded
-`SELECT DISTINCT … LIMIT 21` per text column to fill `Values:` lists. The
-draft is linted at generation time; anything the ground rules would reject — a
-second join path, a deny-listed column — becomes a `# TODO` comment instead,
-so `ostrict scaffold`'s output is accepted by `ostrict lint` with zero errors.
+dbt mode reads `manifest.json` or the project directory — descriptions,
+`unique` tests as primary keys, `relationships` tests as joins,
+`accepted_values` tests as `Values:` enumerations, `partition_by` as a
+conservative partition hint, and real column types from dbt's `catalog.json`
+(auto-discovered, or `--catalog`) — never touching the warehouse. `--models`
+takes names, globs (`int_dw_*`) and dbt tags (`tag:core`); `--config` applies
+your lint config (deny-list, allow-list, exemptions) at generation time; the
+opt-in `--infer-types` drafts untyped `*At`/`*_at`/`*Date` columns as time
+dimensions, labeled as inferences. Engineers can pin decisions in dbt with
+`meta: {semantic: {kind: fact|dimension|skip, values: [...]}}`, so a
+regenerated scaffold keeps their tuning. Connector mode reads
+`INFORMATION_SCHEMA` instead and guesses keys and joins from `*_id` naming;
+`--sample-values` additionally runs a bounded `SELECT DISTINCT … LIMIT 21`
+per text column. Every keyed table gets a `COUNT` metric, sequence-like
+columns get no sample `SUM`, and columns that merely look like personal data
+are kept but flagged `TODO(PII-check)`. The draft is linted at generation
+time; anything the ground rules would reject — a second join path, a
+deny-listed column — becomes a `# TODO` comment instead, name-matched foreign
+keys become paste-ready candidate-join snippets, and `ostrict scaffold`'s
+output is accepted by `ostrict lint` with zero errors.
 
 ## Querying
 
