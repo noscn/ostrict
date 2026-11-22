@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from strict_semantic.models.ast import Partition
-from strict_semantic.models.errors import ERR_PARSE, ERR_UNKNOWN_TABLE, CompilerError
-from strict_semantic.parsers import load_view, parse_ddl_view, parse_yaml_view
+from ostrict.models.ast import Partition
+from ostrict.models.errors import ERR_PARSE, ERR_UNKNOWN_TABLE, CompilerError
+from ostrict.parsers import load_view, parse_ddl_view, parse_yaml_view
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

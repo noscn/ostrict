@@ -1,7 +1,7 @@
 """Static Ground Rules Linter: orchestrates SV-R1 through SV-R10 over a view.
 
 ERROR findings block compilation (``ensure_valid``); WARN/POLICY findings are
-for CI mode (``strict-semantic lint``).
+for CI mode (``ostrict lint``).
 """
 
 from __future__ import annotations

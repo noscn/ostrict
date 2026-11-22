@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from strict_semantic.linter import LintConfig, ensure_valid, lint
-from strict_semantic.models.errors import CompilerError, Severity
-from strict_semantic.parsers import load_view
-from strict_semantic.parsers.common import build_view
+from ostrict.linter import LintConfig, ensure_valid, lint
+from ostrict.models.errors import CompilerError, Severity
+from ostrict.parsers import load_view
+from ostrict.parsers.common import build_view
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

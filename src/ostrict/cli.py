@@ -1,4 +1,4 @@
-"""Command line: `strict-semantic lint|compile|eval|export|import`."""
+"""Command line: `ostrict lint|compile|eval|export|import|scaffold`."""
 
 from __future__ import annotations
 
@@ -18,10 +18,14 @@ def _lint_config(path: str | None) -> LintConfig | None:
     if not path:
         return None
     cfg = (yaml.safe_load(Path(path).read_text()) or {}).get("lint") or {}
+    kwargs = {}
+    if cfg.get("security_deny"):  # extend/replace the default deny-list from config
+        kwargs["security_deny"] = tuple(cfg["security_deny"])
     return LintConfig(
         security_allowlist=tuple(cfg.get("security_allowlist") or ()),
         no_pk_tables=tuple(cfg.get("no_pk_tables") or ()),
         no_primary_date_tables=tuple(cfg.get("no_primary_date_tables") or ()),
+        **kwargs,
     )
 
 
@@ -100,8 +104,39 @@ def cmd_import(args) -> int:
     return 0
 
 
+def cmd_scaffold(args) -> int:
+    from .connectors import from_config
+    from .scaffold import scaffold_view
+
+    connector = None
+    if args.connector:
+        cfg_path = Path(args.connector).resolve()
+        cfg = yaml.safe_load(cfg_path.read_text()) or {}
+        connector = from_config(cfg.get("connector") or cfg, cfg_path.parent)
+    result = scaffold_view(
+        from_dbt=args.from_dbt,
+        connector=connector,
+        models=args.models,
+        name=args.name,
+        dialect=args.dialect,
+        sample_values=args.sample_values,
+        catalog=args.catalog,
+        lint_config=_lint_config(args.config),
+        infer_types=args.infer_types,
+    )
+    for n in result.notes:
+        print(f"note: {n}", file=sys.stderr)
+    if not result.report.ok:
+        print(result.report.render(), file=sys.stderr)
+    if args.output:
+        Path(args.output).write_text(result.text)
+    else:
+        print(result.text, end="")
+    return 0 if result.report.ok else 1  # the draft is still written: it is a starting point, not a gate
+
+
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="strict-semantic")
+    p = argparse.ArgumentParser(prog="ostrict")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sp = sub.add_parser("lint", help="lint semantic view files or folders (SV-R1..R10)")
@@ -142,6 +177,27 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--no-lint", action="store_true", help="skip the SV-R1..R10 gate, for inspection only")
     sp.add_argument("--config", default=None, help="strict_semantic.yml whose lint: section to apply")
     sp.set_defaults(fn=cmd_import)
+
+    sp = sub.add_parser("scaffold", help="draft a semantic view YAML from a dbt project or a warehouse schema")
+    sp.add_argument("--from-dbt", default=None, help="dbt manifest.json or project directory")
+    sp.add_argument("--connector", default=None, help="config YAML whose connector: section to read the schema with")
+    sp.add_argument("--models", default=None,
+                    help="comma-separated models/tables; dbt mode also takes globs (int_dw_*) and tag:<name>")
+    sp.add_argument("--catalog", default=None,
+                    help="dbt catalog.json for column types (auto-discovered next to the manifest / in target/)")
+    sp.add_argument("--config", default=None,
+                    help="ostrict.yml whose lint: section (security_deny/allowlist, exemptions) to apply")
+    sp.add_argument("--infer-types", action="store_true",
+                    help="draft untyped *At/_at/*Date/_date columns as time dimensions (labeled in the header)")
+    sp.add_argument("--name", default=None, help="semantic view name (default: project or schema name)")
+    sp.add_argument("--dialect", default=None, help="bigquery | duckdb | snowflake | postgres")
+    sp.add_argument(
+        "--sample-values",
+        action="store_true",
+        help="sample low-cardinality text columns into 'Values:' (SELECT DISTINCT ... LIMIT 21; off = zero scan)",
+    )
+    sp.add_argument("-o", "--output", default=None, help="output file (stdout if omitted)")
+    sp.set_defaults(fn=cmd_scaffold)
 
     args = p.parse_args(argv)
     try:

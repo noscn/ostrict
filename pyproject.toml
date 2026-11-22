@@ -1,6 +1,6 @@
 [project]
-name = "strict-semantic-mcp"
-version = "0.2.0"
+name = "ostrict"
+version = "0.4.1"
 description = "Strict semantic-view linter and deterministic, FinOps-safe SQL compiler with an MCP server for AI data agents."
 authors = [{ name = "Son Chau", email = "46123450+noscn@users.noreply.github.com" }]
 readme = "README.md"
@@ -27,13 +27,15 @@ duckdb = ["duckdb>=1"]
 dev = ["pytest>=8", "duckdb>=1", "ruff>=0.6", "mcp>=2"]
 
 [project.urls]
-Repository = "https://github.com/noscn/strict-semantic-mcp"
-Issues = "https://github.com/noscn/strict-semantic-mcp/issues"
-Changelog = "https://github.com/noscn/strict-semantic-mcp/blob/main/docs/REVISIONS.md"
+Repository = "https://github.com/noscn/ostrict"
+Issues = "https://github.com/noscn/ostrict/issues"
+Changelog = "https://github.com/noscn/ostrict/blob/main/docs/REVISIONS.md"
 
 [project.scripts]
-strict-semantic = "strict_semantic.cli:main"
-strict-semantic-mcp = "strict_semantic.mcp_server.server:main"
+ostrict = "ostrict.cli:main"
+ostrict-mcp = "ostrict.mcp_server.server:main"
+strict-semantic = "ostrict.cli:main"                     # pre-rename alias
+strict-semantic-mcp = "ostrict.mcp_server.server:main"   # pre-rename alias
 
 [build-system]
 requires = ["setuptools>=77"]

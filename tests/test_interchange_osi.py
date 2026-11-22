@@ -9,10 +9,10 @@ import pytest
 import yaml
 from conftest import FIXTURES, JAN
 
-from strict_semantic.compiler import compile_semantic_query
-from strict_semantic.interchange import export_osi, import_osi, to_native_yaml
-from strict_semantic.models.errors import CompilerError
-from strict_semantic.parsers import load_view
+from ostrict.compiler import compile_semantic_query
+from ostrict.interchange import export_osi, import_osi, to_native_yaml
+from ostrict.models.errors import CompilerError
+from ostrict.parsers import load_view
 
 
 def _fresh():
@@ -62,12 +62,12 @@ def test_osi_strip_extensions_warnings():
     out = export_osi(original, strip_extensions=True)
     assert "custom_extensions" not in out.text
     assert any("partition" in w for w in out.warnings)
-    # the comment directives still carry every guardrail for strict-semantic importers
+    # the comment directives still carry every guardrail for ostrict importers
     assert import_osi(out.text) == original
 
 
 def test_cli_export_and_import_end_to_end(tmp_path):
-    cli = [sys.executable, "-m", "strict_semantic.cli"]
+    cli = [sys.executable, "-m", "ostrict.cli"]
     osi_file = tmp_path / "ecommerce.osi.json"
     native_file = tmp_path / "imported.yaml"
 
