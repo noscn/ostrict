@@ -31,9 +31,9 @@ def _payload(res):
 async def _session_run():
     params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "strict_semantic.mcp_server.server"],
+        args=["-m", "ostrict.mcp_server.server"],
         cwd=str(ROOT),
-        env={**os.environ, "STRICT_SEMANTIC_CONFIG": str(ROOT / "examples" / "config.duckdb.yml")},
+        env={**os.environ, "OSTRICT_CONFIG": str(ROOT / "examples" / "config.duckdb.yml")},
     )
     out = {}
     async with stdio_client(params) as (r, w):

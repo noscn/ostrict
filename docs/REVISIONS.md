@@ -115,3 +115,23 @@ three clarifications:
     `Values:` directive), so OSI `fields[].values` apply after construction
     with `_merge`'s agree-or-fail semantics, and `to_native_yaml` appends the
     directive when only the OSI field carried the enumeration.
+
+# v0.3.0 — renamed to ostrict
+
+The project and package were renamed from `strict-semantic-mcp` /
+`strict_semantic` to **ostrict** (**O**SI + **strict**; unlike the myth,
+Ostrict never buries its head in the sand when AI hallucinates SQL).
+Compatibility was kept deliberately:
+
+18. **`import strict_semantic` still works.** A shim package re-exports the
+    public API, and a meta-path finder aliases every `strict_semantic.<module>`
+    to the *same* `ostrict.<module>` object (one copy of every class, so
+    isinstance and equality behave), raising one `DeprecationWarning`.
+19. **Entry points and config.** `strict-semantic` / `strict-semantic-mcp`
+    remain as aliases of `ostrict` / `ostrict-mcp`, and
+    `STRICT_SEMANTIC_CONFIG` is honored when `OSTRICT_CONFIG` is unset; the
+    default config file is now `./ostrict.yml`.
+20. **The OSI extension namespace stays `custom_extensions.strict_semantic`**,
+    so documents exported by 0.2.x import unchanged — renaming it would be a
+    format break for a cosmetic win. On PyPI, new releases ship as `ostrict`;
+    `strict-semantic-mcp` stays at 0.2.0.

@@ -8,15 +8,15 @@ metrics of different grains, and a true point-in-time snapshot table.
 import pytest
 from conftest import JAN, normalize
 
-from strict_semantic.compiler import (
+from ostrict.compiler import (
     CompileConfig,
     compile_dimension_values,
     compile_semantic_query,
     execute_semantic_query,
 )
-from strict_semantic.models.errors import CompilerError
-from strict_semantic.models.query import Filter, SemanticQueryRequest
-from strict_semantic.plugins.base import CompilerPlugin
+from ostrict.models.errors import CompilerError
+from ostrict.models.query import Filter, SemanticQueryRequest
+from ostrict.plugins.base import CompilerPlugin
 
 
 def run(view, connector, **req):

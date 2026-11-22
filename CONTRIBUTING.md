@@ -26,8 +26,8 @@ tests, new lint rules carrying an SV-R* code, golden questions, documentation.
 pip install -e '.[dev]'
 ruff check .
 pytest -q
-strict-semantic lint tests/fixtures/ecommerce.sql
-strict-semantic eval tests/fixtures/golden_questions.yaml
+ostrict lint tests/fixtures/ecommerce.sql
+ostrict eval tests/fixtures/golden_questions.yaml
 ```
 
 Every change lands by pull request with green CI; `main` is protected and takes

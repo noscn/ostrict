@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from strict_semantic.connectors.duckdb import DuckDBConnector
-from strict_semantic.parsers import load_view
+from ostrict.connectors.duckdb import DuckDBConnector
+from ostrict.parsers import load_view
 
 FIXTURES = Path(__file__).parent / "fixtures"
 JAN = [

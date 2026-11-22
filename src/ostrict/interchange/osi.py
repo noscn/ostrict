@@ -2,12 +2,12 @@
 
 Mapping contract: ``docs/osi-mapping.md``. Standard OSI
 slots (datasets, fields, relationships, metrics) map 1:1 onto the canonical
-AST; strict-semantic guardrails that vanilla OSI has no slot for (dialect,
+AST; ostrict guardrails that vanilla OSI has no slot for (dialect,
 partition pruning bounds, snapshot flags, time types) travel in a namespaced
 ``custom_extensions.strict_semantic`` block at the document, dataset and field
 level, so an export → import round-trip rebuilds an equal ``SemanticView``.
 
-Import feeds :func:`strict_semantic.parsers.common.build_view`'s raw shape —
+Import feeds :func:`ostrict.parsers.common.build_view`'s raw shape —
 the adapter the native-YAML module reserved for a pinned interchange format —
 so OSI, Snowflake DDL and native YAML construct views identically (same
 canonicalization, same directive reconciliation), and every import passes the
@@ -49,7 +49,7 @@ from ..parsers.common import (
     build_view,
 )
 
-_EXT = "strict_semantic"
+_EXT = "strict_semantic"  # pre-rename namespace, kept for OSI document compatibility
 _YAML_OPTS = {"sort_keys": False, "allow_unicode": True, "width": 4096}
 
 
