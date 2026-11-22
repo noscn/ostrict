@@ -1,0 +1,89 @@
+# Live-demo semantic view over Google's public BigQuery dataset
+# bigquery-public-data.thelook_ecommerce (fashion e-commerce, ~5 fact/dim tables).
+# Lint it with the products exemption (a catalog table with no date column):
+#   ostrict lint examples/thelook_ecommerce.yaml --config examples/config.thelook.example.yml
+name: thelook
+dialect: bigquery
+comment: Fashion e-commerce demo warehouse over the public thelook_ecommerce dataset.
+ai_sql_generation: Route revenue, order, product and web-event questions here. Always filter order_date or event_date.
+
+tables:
+  users:
+    source: bigquery-public-data.thelook_ecommerce.users
+    primary_key: [id]
+    comment: 'One row per registered user. Primary date: created_at. Source: bigquery-public-data.thelook_ecommerce.users.'
+  products:
+    source: bigquery-public-data.thelook_ecommerce.products
+    primary_key: [id]
+    comment: 'One row per product in the catalog; a pure dimension table with no date column. Source: bigquery-public-data.thelook_ecommerce.products.'
+  orders:
+    source: bigquery-public-data.thelook_ecommerce.orders
+    primary_key: [order_id]
+    comment: 'One row per order. Primary date: created_at. Partition: created_at BY order_date (lookback 1d, lookahead 1d). Source: bigquery-public-data.thelook_ecommerce.orders.'
+  order_items:
+    source: bigquery-public-data.thelook_ecommerce.order_items
+    primary_key: [id]
+    comment: 'One row per ordered line item. Primary date: created_at. Partition: created_at BY order_date (lookback 1d, lookahead 1d). Source: bigquery-public-data.thelook_ecommerce.order_items.'
+  events:
+    source: bigquery-public-data.thelook_ecommerce.events
+    primary_key: [id]
+    comment: 'One row per web session event. Primary date: created_at. Partition: created_at BY event_date (lookback 1d, lookahead 1d). Source: bigquery-public-data.thelook_ecommerce.events.'
+
+relationships:
+  - name: items_orders
+    from: order_items (order_id)
+    to: orders (order_id)
+  - name: items_products
+    from: order_items (product_id)
+    to: products (id)
+  - name: orders_users
+    from: orders (user_id)
+    to: users (id)
+  - name: events_users
+    from: events (user_id)
+    to: users (id)
+
+facts:
+  order_items.sale_price:
+    expr: sale_price
+    comment: Row-level sale price of one ordered line item, in USD.
+
+dimensions:
+  users.country:
+    expr: country
+    comment: Country the user registered from; the usual market-level grouping.
+  users.gender:
+    expr: gender
+    comment: 'Self-reported gender of the user account. Values: F, M.'
+  products.category:
+    expr: category
+    comment: Product merchandising category, for example Jeans or Accessories.
+  products.department:
+    expr: department
+    comment: 'Store department the product belongs to. Values: Men, Women.'
+  orders.order_status:
+    expr: status
+    comment: 'Lifecycle status of the order. Values: Cancelled, Complete, Processing, Returned, Shipped.'
+  orders.order_date:
+    expr: created_at
+    comment: 'Moment the order was placed; partition key of the order tables. Grains: day, week, month. Type: timestamp.'
+  events.traffic_source:
+    expr: traffic_source
+    comment: 'Acquisition channel that produced the web event. Values: Adwords, Email, Facebook, Organic, YouTube.'
+  events.event_date:
+    expr: created_at
+    comment: 'Moment the web event happened; partition key of the events table. Grains: day, week, month. Type: timestamp.'
+
+metrics:
+  order_items.total_revenue:
+    expr: SUM(sale_price)
+    comment: 'Gross revenue across ordered line items, in USD. Population: all ordered line items. Additivity: additive.'
+  orders.order_count:
+    expr: COUNT(order_id)
+    comment: 'Number of orders placed. Population: all orders. Additivity: additive.'
+  events.event_count:
+    expr: COUNT(id)
+    comment: 'Number of web events recorded. Population: all web events. Additivity: additive.'
+  revenue_per_order:
+    expr: total_revenue / order_count
+    comment: 'Average order value: gross revenue divided by orders placed. Additivity: ratio.'

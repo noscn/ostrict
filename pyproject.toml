@@ -46,6 +46,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["integration: live BigQuery tests (need GCP_PROJECT and application-default credentials)"]
 
 [tool.ruff]
 line-length = 125

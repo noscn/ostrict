@@ -1,0 +1,13 @@
+# Live demo: the public thelook_ecommerce dataset through the MCP server.
+#   1. set connector.project to any GCP project you can bill (the free sandbox tier is enough)
+#   2. OSTRICT_CONFIG=$PWD/examples/config.thelook.example.yml ostrict-mcp
+views: ./thelook_ecommerce.yaml
+connector:
+  type: bigquery
+  project: your-gcp-project
+  max_bytes: 5000000000            # dry-run guard: refuse queries scanning > 5 GB
+limits:
+  default_limit: 1000
+  max_limit: 10000
+lint:
+  no_primary_date_tables: [products]   # catalog table: no date column by design
