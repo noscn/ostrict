@@ -29,7 +29,7 @@
         "customer_id": {"name": "customer_id", "type": "INT64", "index": 3},
         "shipped_at": {"name": "shipped_at", "type": "TIMESTAMP", "index": 4},
         "status": {"name": "status", "type": "STRING", "index": 5},
-        "weight_kg": {"name": "weight_kg", "type": "FLOAT64", "index": 6},
+        "weight_kg": {"name": "weight_kg", "type": "BIGNUMERIC", "index": 6},
         "line_no": {"name": "line_no", "type": "INT64", "index": 7},
         "priority_score": {"name": "priority_score", "type": "INT64", "index": 8},
         "internal_hash": {"name": "internal_hash", "type": "STRING", "index": 9}

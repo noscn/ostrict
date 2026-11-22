@@ -52,7 +52,8 @@ from ..linter import LintConfig, LintReport, lint
 from ..models.ast import SemanticView
 from ..parsers.common import build_view
 
-_NUMERIC = ("INT", "BIGINT", "SMALLINT", "TINYINT", "DECIMAL", "NUMERIC", "DOUBLE", "FLOAT", "REAL")
+_NUMERIC = ("INT", "BIGINT", "SMALLINT", "TINYINT", "DECIMAL", "NUMERIC", "BIGNUMERIC", "BIGDECIMAL",
+            "DOUBLE", "FLOAT", "REAL")
 _STRINGY = ("VARCHAR", "TEXT", "STRING", "CHAR")
 _SAMPLE_CAP = 15  # SV-R6.7: declare Values: only for genuinely low-cardinality columns
 
