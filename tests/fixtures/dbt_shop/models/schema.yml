@@ -1,0 +1,68 @@
+version: 2
+
+models:
+  - name: customers
+    description: One registered customer per row, with home region.
+    columns:
+      - name: customer_id
+        data_type: integer
+        tests: [unique, not_null]
+      - name: region
+        data_type: varchar
+        description: Customer home region used for market reporting.
+      - name: user_email
+        data_type: varchar
+        description: Login email of the customer account.
+      - name: signup_date
+        data_type: date
+        description: Date the customer signed up.
+
+  - name: orders
+    description: Customer orders placed in the shop.
+    columns:
+      - name: order_id
+        data_type: integer
+        tests: [unique, not_null]
+      - name: customer_id
+        data_type: integer
+        tests:
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: order_date
+        data_type: date
+        description: Date the order was placed.
+      - name: status
+        data_type: varchar
+        description: Lifecycle status of the order.
+      - name: total_amount
+        data_type: numeric
+        description: Order total in account currency.
+
+  - name: shipments
+    description: Physical shipments fulfilling orders.
+    columns:
+      - name: shipment_id
+        data_type: integer
+        tests: [unique, not_null]
+      - name: order_id
+        data_type: integer
+        tests:
+          - relationships:
+              to: ref('orders')
+              field: order_id
+      - name: customer_id
+        data_type: integer
+        tests:
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: shipped_at
+        data_type: timestamp
+        description: Moment the parcel left the warehouse.
+      - name: status
+        data_type: varchar
+        description: Delivery status of the shipment.
+      - name: weight_kg
+        data_type: float
+        description: Parcel weight in kilograms.

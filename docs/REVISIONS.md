@@ -135,3 +135,23 @@ Compatibility was kept deliberately:
     so documents exported by 0.2.x import unchanged — renaming it would be a
     format break for a cosmetic win. On PyPI, new releases ship as `ostrict`;
     `strict-semantic-mcp` stays at 0.2.0.
+
+# v0.4.0 — `ostrict scaffold`
+
+Draft generation from dbt metadata or a live `INFORMATION_SCHEMA`, built so
+the draft passes SV-R1..R10 at generation time:
+
+21. **The join graph is forest-ified, never repaired.** Candidate
+    relationships are accepted first-come while they connect new components
+    (union-find); a self-reference or a second path between two tables moves
+    into a `# TODO` comment with a paste-ready snippet (SV-R3.1 / SV-R3.5),
+    and a relationship onto a partial parent key is skipped the same way
+    (SV-R3.2).
+22. **Heuristics are labeled, never hidden.** Connector mode guesses primary
+    keys by name convention (`<singular>_id`, `id`, else the first column
+    with a note) and infers joins only onto confidently-keyed parents; every
+    guess lands in the TODO header and on stderr.
+23. **`scaffold` writes drafts, `import` gates models.** A draft that still
+    fails lint (say, a table with no date column) is written anyway, with the
+    report on stderr and exit 1 — it is a starting point for a human — while
+    `ostrict import` keeps refusing to write an invalid conversion.

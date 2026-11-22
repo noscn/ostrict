@@ -1,4 +1,4 @@
-"""Command line: `ostrict lint|compile|eval|export|import`."""
+"""Command line: `ostrict lint|compile|eval|export|import|scaffold`."""
 
 from __future__ import annotations
 
@@ -100,6 +100,34 @@ def cmd_import(args) -> int:
     return 0
 
 
+def cmd_scaffold(args) -> int:
+    from .connectors import from_config
+    from .scaffold import scaffold_view
+
+    connector = None
+    if args.connector:
+        cfg_path = Path(args.connector).resolve()
+        cfg = yaml.safe_load(cfg_path.read_text()) or {}
+        connector = from_config(cfg.get("connector") or cfg, cfg_path.parent)
+    result = scaffold_view(
+        from_dbt=args.from_dbt,
+        connector=connector,
+        models=args.models,
+        name=args.name,
+        dialect=args.dialect,
+        sample_values=args.sample_values,
+    )
+    for n in result.notes:
+        print(f"note: {n}", file=sys.stderr)
+    if not result.report.ok:
+        print(result.report.render(), file=sys.stderr)
+    if args.output:
+        Path(args.output).write_text(result.text)
+    else:
+        print(result.text, end="")
+    return 0 if result.report.ok else 1  # the draft is still written: it is a starting point, not a gate
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ostrict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -142,6 +170,20 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--no-lint", action="store_true", help="skip the SV-R1..R10 gate, for inspection only")
     sp.add_argument("--config", default=None, help="strict_semantic.yml whose lint: section to apply")
     sp.set_defaults(fn=cmd_import)
+
+    sp = sub.add_parser("scaffold", help="draft a semantic view YAML from a dbt project or a warehouse schema")
+    sp.add_argument("--from-dbt", default=None, help="dbt manifest.json or project directory")
+    sp.add_argument("--connector", default=None, help="config YAML whose connector: section to read the schema with")
+    sp.add_argument("--models", default=None, help="comma-separated models/tables to include")
+    sp.add_argument("--name", default=None, help="semantic view name (default: project or schema name)")
+    sp.add_argument("--dialect", default=None, help="bigquery | duckdb | snowflake | postgres")
+    sp.add_argument(
+        "--sample-values",
+        action="store_true",
+        help="sample low-cardinality text columns into 'Values:' (SELECT DISTINCT ... LIMIT 21; off = zero scan)",
+    )
+    sp.add_argument("-o", "--output", default=None, help="output file (stdout if omitted)")
+    sp.set_defaults(fn=cmd_scaffold)
 
     args = p.parse_args(argv)
     try:

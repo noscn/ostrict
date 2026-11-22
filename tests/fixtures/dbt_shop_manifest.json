@@ -1,0 +1,92 @@
+{
+  "metadata": {"project_name": "shop_dbt", "dbt_version": "1.8.0"},
+  "nodes": {
+    "model.shop_dbt.customers": {
+      "resource_type": "model",
+      "name": "customers",
+      "schema": "shop",
+      "alias": "customers",
+      "description": "One registered customer per row, with home region.",
+      "config": {"materialized": "table"},
+      "columns": {
+        "customer_id": {"name": "customer_id", "data_type": "integer", "description": ""},
+        "region": {"name": "region", "data_type": "varchar", "description": "Customer home region used for market reporting."},
+        "user_email": {"name": "user_email", "data_type": "varchar", "description": "Login email of the customer account."},
+        "signup_date": {"name": "signup_date", "data_type": "date", "description": "Date the customer signed up."}
+      }
+    },
+    "model.shop_dbt.orders": {
+      "resource_type": "model",
+      "name": "orders",
+      "schema": "shop",
+      "alias": "orders",
+      "description": "Customer orders placed in the shop.",
+      "config": {"materialized": "incremental", "partition_by": {"field": "order_date", "data_type": "date"}},
+      "columns": {
+        "order_id": {"name": "order_id", "data_type": "integer", "description": ""},
+        "customer_id": {"name": "customer_id", "data_type": "integer", "description": ""},
+        "order_date": {"name": "order_date", "data_type": "date", "description": "Date the order was placed."},
+        "status": {"name": "status", "data_type": "varchar", "description": "Lifecycle status of the order."},
+        "total_amount": {"name": "total_amount", "data_type": "numeric", "description": "Order total in account currency."}
+      }
+    },
+    "model.shop_dbt.shipments": {
+      "resource_type": "model",
+      "name": "shipments",
+      "schema": "shop",
+      "alias": "shipments_v",
+      "description": "Physical shipments fulfilling orders.",
+      "config": {"materialized": "table"},
+      "columns": {
+        "shipment_id": {"name": "shipment_id", "data_type": "integer", "description": ""},
+        "order_id": {"name": "order_id", "data_type": "integer", "description": ""},
+        "customer_id": {"name": "customer_id", "data_type": "integer", "description": ""},
+        "shipped_at": {"name": "shipped_at", "data_type": "timestamp", "description": "Moment the parcel left the warehouse."},
+        "status": {"name": "status", "data_type": "varchar", "description": "Delivery status of the shipment."},
+        "weight_kg": {"name": "weight_kg", "data_type": "float", "description": "Parcel weight in kilograms."}
+      }
+    },
+    "test.shop_dbt.unique_customers_customer_id.c1": {
+      "resource_type": "test",
+      "name": "unique_customers_customer_id",
+      "attached_node": "model.shop_dbt.customers",
+      "test_metadata": {"name": "unique", "kwargs": {"column_name": "customer_id", "model": "{{ get_where_subquery(ref('customers')) }}"}}
+    },
+    "test.shop_dbt.not_null_customers_customer_id.c2": {
+      "resource_type": "test",
+      "name": "not_null_customers_customer_id",
+      "attached_node": "model.shop_dbt.customers",
+      "test_metadata": {"name": "not_null", "kwargs": {"column_name": "customer_id", "model": "{{ get_where_subquery(ref('customers')) }}"}}
+    },
+    "test.shop_dbt.unique_orders_order_id.o1": {
+      "resource_type": "test",
+      "name": "unique_orders_order_id",
+      "attached_node": "model.shop_dbt.orders",
+      "test_metadata": {"name": "unique", "kwargs": {"column_name": "order_id", "model": "{{ get_where_subquery(ref('orders')) }}"}}
+    },
+    "test.shop_dbt.relationships_orders_customer_id.o2": {
+      "resource_type": "test",
+      "name": "relationships_orders_customer_id__customer_id__ref_customers_",
+      "attached_node": "model.shop_dbt.orders",
+      "test_metadata": {"name": "relationships", "kwargs": {"column_name": "customer_id", "field": "customer_id", "to": "ref('customers')", "model": "{{ get_where_subquery(ref('orders')) }}"}}
+    },
+    "test.shop_dbt.unique_shipments_shipment_id.s1": {
+      "resource_type": "test",
+      "name": "unique_shipments_shipment_id",
+      "attached_node": "model.shop_dbt.shipments",
+      "test_metadata": {"name": "unique", "kwargs": {"column_name": "shipment_id", "model": "{{ get_where_subquery(ref('shipments')) }}"}}
+    },
+    "test.shop_dbt.relationships_shipments_order_id.s2": {
+      "resource_type": "test",
+      "name": "relationships_shipments_order_id__order_id__ref_orders_",
+      "attached_node": "model.shop_dbt.shipments",
+      "test_metadata": {"name": "relationships", "kwargs": {"column_name": "order_id", "field": "order_id", "to": "ref('orders')", "model": "{{ get_where_subquery(ref('shipments')) }}"}}
+    },
+    "test.shop_dbt.relationships_shipments_customer_id.s3": {
+      "resource_type": "test",
+      "name": "relationships_shipments_customer_id__customer_id__ref_customers_",
+      "attached_node": "model.shop_dbt.shipments",
+      "test_metadata": {"name": "relationships", "kwargs": {"column_name": "customer_id", "field": "customer_id", "to": "ref('customers')", "model": "{{ get_where_subquery(ref('shipments')) }}"}}
+    }
+  }
+}
