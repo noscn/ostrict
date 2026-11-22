@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ostrict studio</title>
+<style>
+:root{
+  --bg:#0c1017; --panel:#141a24; --panel2:#101621; --border:#232c3b;
+  --text:#dbe2ee; --muted:#8a94a6; --accent:#3b82f6;
+  --fact:#3b82f6; --dimension:#22c55e; --snapshot:#f59e0b; --roleplay:#a78bfa;
+  --error:#ef4444; --warn:#f59e0b; --policy:#a78bfa; --ok:#22c55e;
+  --edge:#5b6678; --node:#161e2b; --chip:#1d2634;
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f5f7fa; --panel:#ffffff; --panel2:#eef1f6; --border:#d6dce6;
+    --text:#1a2332; --muted:#5b6678; --node:#ffffff; --chip:#e9edf4; --edge:#9aa4b5;
+  }
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:8px 14px;background:var(--panel);
+  border-bottom:1px solid var(--border);flex:0 0 auto}
+header .brand{font-weight:700;letter-spacing:.4px}
+header .brand span{color:var(--accent)}
+header .vname{color:var(--muted)}
+.pill{padding:2px 10px;border-radius:999px;background:var(--chip);border:1px solid var(--border);font-size:12px}
+.pill.err{color:#fff;background:var(--error);border-color:var(--error)}
+.pill.ok{color:#04240f;background:var(--ok);border-color:var(--ok)}
+.spacer{flex:1}
+button{background:var(--chip);color:var(--text);border:1px solid var(--border);border-radius:6px;
+  padding:5px 10px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--accent)}
+main{display:flex;flex:1;min-height:0}
+#sidebar{width:270px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--border);
+  overflow-y:auto;padding:10px}
+#sidebar h3{margin:12px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.viewrow{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer}
+.viewrow:hover{background:var(--panel2)} .viewrow.active{background:var(--chip);outline:1px solid var(--accent)}
+.viewrow .cnt{font-size:11px;color:var(--muted)}
+.viewrow .cnt b.e{color:var(--error)} .viewrow .cnt b.w{color:var(--warn)}
+label.toggle{display:flex;gap:8px;align-items:center;padding:3px 2px;cursor:pointer;color:var(--muted)}
+.finding{border-left:3px solid var(--muted);background:var(--panel2);border-radius:4px;
+  padding:6px 8px;margin:6px 0;font-size:12px}
+.finding.error{border-color:var(--error)} .finding.warn{border-color:var(--warn)} .finding.policy{border-color:var(--policy)}
+.finding .rule{font-weight:700;margin-right:6px}
+.finding.error .rule{color:var(--error)} .finding.warn .rule{color:var(--warn)} .finding.policy .rule{color:var(--policy)}
+.broken{color:var(--error);font-size:12px;padding:6px 8px;background:var(--panel2);border-radius:6px;margin:6px 0}
+#canvaswrap{flex:1;position:relative;min-width:0;background:
+  radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0/26px 26px}
+svg{width:100%;height:100%;display:block;cursor:grab}
+svg.panning{cursor:grabbing}
+.node rect.body{fill:var(--node);stroke:var(--border);stroke-width:1.2;rx:8}
+.node.errored rect.body{stroke:var(--error);stroke-width:2;filter:drop-shadow(0 0 6px rgba(239,68,68,.7))}
+.node.selected rect.body{stroke:var(--accent);stroke-width:2}
+.node text{fill:var(--text);font:12px ui-monospace,Menlo,monospace}
+.node text.hdr{font-weight:700;fill:#fff}
+.node text.muted{fill:var(--muted);font-size:11px}
+.node{cursor:pointer}
+.edge path{fill:none;stroke:var(--edge);stroke-width:1.6;marker-end:url(#arrow)}
+.edge.error path{stroke:var(--error);stroke-dasharray:6 4;marker-end:url(#arrowErr)}
+.edge.selected path{stroke:var(--accent);stroke-width:2.4;marker-end:url(#arrowSel)}
+.edge text{fill:var(--muted);font-size:10.5px}
+.edge{cursor:pointer}
+.dim{opacity:.22}
+#inspector{width:330px;flex:0 0 auto;background:var(--panel);border-left:1px solid var(--border);
+  overflow-y:auto;padding:12px;display:none}
+#inspector.open{display:block}
+#inspector h2{margin:0 0 2px;font-size:15px}
+#inspector h4{margin:14px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+#inspector .kv{color:var(--muted)} #inspector .kv b{color:var(--text);font-weight:600}
+#inspector .fieldrow{padding:4px 6px;border-radius:4px;background:var(--panel2);margin:3px 0;font-size:12px}
+#inspector .fieldrow .ex{color:var(--muted)}
+.badge{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10.5px;font-weight:700;margin-right:5px;color:#fff}
+.badge.fact{background:var(--fact)} .badge.dimension{background:var(--dimension);color:#04240f}
+.badge.snapshot{background:var(--snapshot);color:#2a1a00} .badge.roleplay{background:var(--roleplay);color:#1d1040}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:30}
+#modal.open{display:flex}
+#modal .box{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:min(720px,92vw);
+  max-height:84vh;overflow-y:auto;padding:18px}
+#modal pre{background:var(--panel2);border:1px solid var(--border);border-radius:6px;padding:10px;
+  overflow-x:auto;white-space:pre-wrap;word-break:break-all;font-size:12px}
+#modal .snip{margin:14px 0}
+#modal .snip .bar{display:flex;justify-content:space-between;align-items:center}
+.note{color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ostrict <span>studio</span></div>
+  <div class="vname" id="vname">–</div>
+  <div class="pill" id="lintpill">loading…</div>
+  <div class="spacer"></div>
+  <span class="note" id="livenote">live · polls 1.5s</span>
+  <button id="fitbtn" title="Fit diagram to view">Fit</button>
+  <button id="mcpbtn">Connect AI Agent</button>
+</header>
+<main>
+  <nav id="sidebar">
+    <h3>Views</h3>
+    <div id="viewlist"></div>
+    <div id="brokenlist"></div>
+    <h3>Show</h3>
+    <label class="toggle"><input type="checkbox" id="t_facts" checked> Facts</label>
+    <label class="toggle"><input type="checkbox" id="t_dims" checked> Dimensions</label>
+    <label class="toggle"><input type="checkbox" id="t_mets" checked> Metrics</label>
+    <label class="toggle"><input type="checkbox" id="t_err"> Highlight errors only</label>
+    <h3>Derived metrics</h3>
+    <div id="derived" class="note">–</div>
+    <h3>View-level findings</h3>
+    <div id="vfindings" class="note">none</div>
+  </nav>
+  <div id="canvaswrap">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--edge)"/></marker>
+        <marker id="arrowErr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--error)"/></marker>
+        <marker id="arrowSel" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker>
+      </defs>
+      <g id="scene"></g>
+    </svg>
+  </div>
+  <aside id="inspector"></aside>
+</main>
+<div id="modal"><div class="box">
+  <div class="bar" style="display:flex;justify-content:space-between;align-items:center">
+    <h2 style="margin:0">Connect an AI agent</h2><button id="mclose">Close</button>
+  </div>
+  <p class="note">Point an MCP client at <code>ostrict-mcp</code> with your config. Snippets are pre-filled
+  from this studio's resolved paths — adjust the config path if it shows a placeholder.</p>
+  <div id="snips">loading…</div>
+</div></div>
+<script>
+"use strict";
+const S = {views: [], broken: [], current: null, payload: null, stamp: null,
+           pos: {}, sel: null, vb: {x: 0, y: 0, w: 1200, h: 800}};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const t = (s, n) => { s = String(s ?? ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+const ROLE = {fact: "var(--fact)", dimension: "var(--dimension)", snapshot: "var(--snapshot)"};
+const NW = 260;
+
+async function j(url){ const r = await fetch(url); if(!r.ok) throw new Error(url + " -> " + r.status); return r.json(); }
+
+function filters(){ return {facts: $("t_facts").checked, dims: $("t_dims").checked,
+                            mets: $("t_mets").checked, err: $("t_err").checked}; }
+
+function sections(n, f){
+  const out = [];
+  if (f.facts && n.facts.length) out.push({label: "FACTS", items: n.facts.map(x => x.name)});
+  if (f.dims && n.dimensions.length) out.push({label: "DIMENSIONS",
+    items: n.dimensions.map(d => d.name + (d.is_time ? " ⏱" : ""))});
+  if (f.mets && n.metrics.length) out.push({label: "METRICS", items: n.metrics.map(m => "Σ " + m.name)});
+  for (const s of out) if (s.items.length > 6) s.items = s.items.slice(0, 6).concat(["+" + (s.items.length - 6) + " more"]);
+  return out;
+}
+
+function nodeHeight(n, f){
+  let h = 30 + 16; // header + source line
+  if (n.role_playing || n.snapshot) h += 16;
+  for (const s of sections(n, f)) h += 15 + s.items.length * 15;
+  return h + 8;
+}
+
+function layout(){
+  const p = S.payload, f = filters();
+  const lvl = {}; p.nodes.forEach(n => lvl[n.name] = 0);
+  for (let i = 0; i < p.nodes.length + 1; i++)
+    for (const e of p.edges)
+      if (e.child in lvl && e.parent in lvl)
+        lvl[e.parent] = Math.max(lvl[e.parent], lvl[e.child] + 1);
+  const cols = {};
+  for (const n of p.nodes) (cols[lvl[n.name]] = cols[lvl[n.name]] || []).push(n);
+  const geo = {};
+  for (const [L, ns] of Object.entries(cols)){
+    ns.sort((a, b) => a.name.localeCompare(b.name));
+    let y = 40;
+    for (const n of ns){
+      const h = nodeHeight(n, f);
+      geo[n.name] = {x: 40 + L * 360, y, w: NW, h};
+      y += h + 28;
+    }
+  }
+  for (const [name, o] of Object.entries(S.pos)) if (geo[name]) { geo[name].x = o.x; geo[name].y = o.y; }
+  return geo;
+}
+
+function render(){
+  const p = S.payload; if (!p) return;
+  const f = filters(), geo = layout();
+  let svg = "";
+  for (const e of p.edges){
+    const c = geo[e.child], pa = geo[e.parent];
+    if (!c || !pa) continue;
+    const x1 = c.x + c.w, y1 = c.y + 15, x2 = pa.x, y2 = pa.y + 15;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const errCls = e.status === "error" ? " error" : "";
+    const selCls = S.sel && S.sel.type === "edge" && S.sel.id === e.name ? " selected" : "";
+    const dimCls = f.err && e.status !== "error" ? " dim" : "";
+    svg += `<g class="edge${errCls}${selCls}${dimCls}" data-edge="${esc(e.name)}">
+      <path d="M ${x1},${y1} C ${x1 + 70},${y1} ${x2 - 70},${y2} ${x2},${y2}"/>
+      <text x="${mx}" y="${my - 6}" text-anchor="middle">${esc(t(e.name, 26))}</text>
+      <text x="${mx}" y="${my + 8}" text-anchor="middle">${esc(t(e.child_columns + " → " + e.parent_columns, 30))}</text>
+    </g>`;
+  }
+  for (const n of p.nodes){
+    const g = geo[n.name];
+    const hasErr = n.findings.some(x => x.severity === "error");
+    const cls = ["node", hasErr ? "errored" : "",
+                 S.sel && S.sel.type === "node" && S.sel.id === n.name ? "selected" : "",
+                 f.err && !hasErr ? "dim" : ""].join(" ");
+    let rows = "", ry = 46;
+    rows += `<text class="muted" x="10" y="${ry}">${esc(t(n.source, 36))}</text>`; ry += 16;
+    if (n.role_playing || n.snapshot){
+      const b = [n.snapshot ? "SNAPSHOT" : "", n.role_playing ? "ROLE-PLAYING" : ""].filter(Boolean).join("  ·  ");
+      rows += `<text class="muted" x="10" y="${ry}" fill="var(--roleplay)">${esc(b)}</text>`; ry += 16;
+    }
+    for (const s of sections(n, f)){
+      rows += `<text class="muted" x="10" y="${ry}" style="letter-spacing:.8px;font-size:9.5px">${s.label}</text>`; ry += 15;
+      for (const it of s.items){ rows += `<text x="16" y="${ry}">${esc(t(it, 32))}</text>`; ry += 15; }
+    }
+    const errChip = n.findings.length
+      ? `<text x="${g.w - 10}" y="20" text-anchor="end" fill="${hasErr ? "var(--error)" : "var(--warn)"}">⚑ ${n.findings.length}</text>` : "";
+    svg += `<g class="${cls}" data-node="${esc(n.name)}" transform="translate(${g.x},${g.y})">
+      <rect class="body" width="${g.w}" height="${g.h}" rx="8"/>
+      <rect width="${g.w}" height="30" rx="8" fill="${ROLE[n.role] || "var(--edge)"}"/>
+      <rect y="22" width="${g.w}" height="8" fill="${ROLE[n.role] || "var(--edge)"}"/>
+      <text class="hdr" x="10" y="20">${esc(t(n.name, 24))}</text>${errChip}${rows}
+    </g>`;
+  }
+  $("scene").innerHTML = svg;
+  applyViewBox();
+  $("vname").textContent = p.name + " · " + p.dialect;
+  const s = p.summary;
+  const pill = $("lintpill");
+  pill.textContent = `${s.errors} errors · ${s.warnings} warnings` + (s.policies ? ` · ${s.policies} policy` : "");
+  pill.className = "pill " + (s.errors ? "err" : "ok");
+  $("derived").innerHTML = p.derived_metrics.length
+    ? p.derived_metrics.map(m => `<div class="fieldrow">ƒ ${esc(m.name)} <span class="ex">= ${esc(m.expr)}</span></div>`).join("")
+    : "none";
+  $("vfindings").innerHTML = p.findings.length ? p.findings.map(fin => findingHTML(fin)).join("") : "none";
+  renderInspector();
+}
+
+function findingHTML(f){
+  return `<div class="finding ${esc(f.severity)}"><span class="rule">${esc(f.rule)}</span>${esc(f.code)}<br>${esc(f.message)}</div>`;
+}
+
+function renderInspector(){
+  const box = $("inspector");
+  if (!S.sel || !S.payload){ box.className = ""; box.innerHTML = ""; return; }
+  box.className = "open";
+  if (S.sel.type === "node"){
+    const n = S.payload.nodes.find(x => x.name === S.sel.id);
+    if (!n) { box.className = ""; return; }
+    const badge = `<span class="badge ${n.role}">${n.role.toUpperCase()}</span>` +
+      (n.role_playing ? `<span class="badge roleplay">ROLE-PLAYING</span>` : "");
+    const part = n.partition
+      ? `${esc(n.partition.column)} BY ${esc(n.partition.dimension)} (lookback ${n.partition.lookback_days}d, lookahead ${n.partition.lookahead_days}d)`
+      : "–";
+    box.innerHTML = `
+      <h2>${esc(n.name)}</h2><div>${badge}</div>
+      <h4>Grain</h4><div>${esc(n.comment) || "–"}</div>
+      <h4>Physical</h4>
+      <div class="kv">source <b>${esc(n.source)}</b></div>
+      <div class="kv">primary key <b>${esc(n.primary_key.join(", ") || "–")}</b></div>
+      <div class="kv">primary date <b>${esc(n.primary_date || "–")}</b></div>
+      <div class="kv">partition <b>${part}</b></div>
+      <div class="kv">filter <b>${esc(n.filter || "–")}</b></div>
+      ${n.role_playing ? `<div class="kv">shares source with <b>${esc(n.shared_source_with.join(", "))}</b></div>` : ""}
+      <h4>Facts (${n.facts.length})</h4>
+      ${n.facts.map(x => `<div class="fieldrow">${esc(x.name)} <span class="ex">= ${esc(x.expr)}</span></div>`).join("") || "–"}
+      <h4>Dimensions (${n.dimensions.length})</h4>
+      ${n.dimensions.map(d => `<div class="fieldrow">${esc(d.name)}${d.is_time ? " ⏱ " + esc(d.grains.join("/")) + " · " + esc(d.time_type) : ""}
+        ${d.values.length ? `<br><span class="ex">values: ${esc(d.values.join(", "))}</span>` : ""}</div>`).join("") || "–"}
+      <h4>Metrics (${n.metrics.length})</h4>
+      ${n.metrics.map(m => `<div class="fieldrow">Σ ${esc(m.name)} <span class="ex">= ${esc(m.expr)}</span>
+        ${m.non_additive_by ? `<br><span class="ex">NON ADDITIVE BY ${esc(m.non_additive_by)}</span>` : ""}</div>`).join("") || "–"}
+      <h4>Findings (${n.findings.length})</h4>
+      ${n.findings.map(findingHTML).join("") || "none"}`;
+  } else {
+    const e = S.payload.edges.find(x => x.name === S.sel.id);
+    if (!e) { box.className = ""; return; }
+    box.innerHTML = `
+      <h2>${esc(e.name)}</h2>
+      <div class="kv">join <b>${esc(e.child)} (${esc(e.child_columns.join(", "))}) → ${esc(e.parent)} (${esc(e.parent_columns.join(", "))})</b></div>
+      <div class="kv">cardinality <b>many-to-one</b></div>
+      <div class="kv">status <b>${esc(e.status)}</b></div>
+      <h4>Findings (${e.findings.length})</h4>
+      ${e.findings.map(findingHTML).join("") || "none"}`;
+  }
+}
+
+function renderViewList(){
+  $("viewlist").innerHTML = S.views.map(v => `
+    <div class="viewrow ${v.name === S.current ? "active" : ""}" data-view="${esc(v.name)}">
+      <span>${esc(v.name)}</span>
+      <span class="cnt"><b class="e">${v.errors}E</b> <b class="w">${v.warnings}W</b></span>
+    </div>`).join("") || `<div class="note">no views found</div>`;
+  $("brokenlist").innerHTML = S.broken.map(b =>
+    `<div class="broken"><b>${esc(b.file.split("/").pop())}</b> failed to parse<br>${esc(t(b.error, 160))}</div>`).join("");
+}
+
+function applyViewBox(){
+  $("svg").setAttribute("viewBox", `${S.vb.x} ${S.vb.y} ${S.vb.w} ${S.vb.h}`);
+}
+
+function fit(){
+  const g = layout(); const names = Object.keys(g);
+  if (!names.length) return;
+  let x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9;
+  for (const n of names){ const o = g[n];
+    x1 = Math.min(x1, o.x); y1 = Math.min(y1, o.y); x2 = Math.max(x2, o.x + o.w); y2 = Math.max(y2, o.y + o.h); }
+  const pad = 60, el = $("svg"), ar = el.clientWidth / Math.max(1, el.clientHeight);
+  let w = x2 - x1 + pad * 2, h = y2 - y1 + pad * 2;
+  if (w / h < ar) w = h * ar; else h = w / ar;
+  S.vb = {x: x1 - pad, y: y1 - pad, w, h};
+  applyViewBox();
+}
+
+async function selectView(name, keep){
+  S.current = name;
+  if (!keep){ S.pos = {}; S.sel = null; }
+  S.payload = await j("/api/views/" + encodeURIComponent(name));
+  renderViewList(); render();
+  if (!keep) fit();
+}
+
+async function refresh(first){
+  const st = await j("/api/state");
+  const changed = st.stamp !== S.stamp;
+  S.stamp = st.stamp; S.views = st.views; S.broken = st.broken;
+  renderViewList();
+  if (!S.views.length){ $("vname").textContent = "–"; return; }
+  if (!S.current || !S.views.some(v => v.name === S.current))
+    await selectView(S.views[0].name, false);
+  else if (changed || first)
+    await selectView(S.current, !first);
+}
+
+// ---- interactions -----------------------------------------------------------
+const svg = $("svg");
+let drag = null; // {kind: "pan"|"node", ...}
+function toWorld(ev){
+  const r = svg.getBoundingClientRect();
+  return {x: S.vb.x + (ev.clientX - r.left) / r.width * S.vb.w,
+          y: S.vb.y + (ev.clientY - r.top) / r.height * S.vb.h};
+}
+svg.addEventListener("pointerdown", ev => {
+  const nodeEl = ev.target.closest("[data-node]");
+  const edgeEl = ev.target.closest("[data-edge]");
+  const w = toWorld(ev);
+  if (nodeEl){
+    const name = nodeEl.dataset.node, g = layout()[name];
+    drag = {kind: "node", name, dx: w.x - g.x, dy: w.y - g.y,
+            sx: ev.clientX, sy: ev.clientY, moved: false};
+  } else {
+    // pointer capture retargets pointerup to the svg, so remember what was hit now
+    drag = {kind: "pan", edge: edgeEl ? edgeEl.dataset.edge : null,
+            sx: ev.clientX, sy: ev.clientY, vb: {...S.vb}, moved: false};
+    svg.classList.add("panning");
+  }
+  svg.setPointerCapture(ev.pointerId);
+});
+svg.addEventListener("pointermove", ev => {
+  if (!drag) return;
+  if (drag.kind === "node"){
+    if (!drag.moved && Math.abs(ev.clientX - drag.sx) + Math.abs(ev.clientY - drag.sy) <= 3) return;
+    drag.moved = true;
+    const w = toWorld(ev);
+    S.pos[drag.name] = {x: w.x - drag.dx, y: w.y - drag.dy};
+    render();
+  } else {
+    const r = svg.getBoundingClientRect();
+    S.vb.x = drag.vb.x - (ev.clientX - drag.sx) / r.width * S.vb.w;
+    S.vb.y = drag.vb.y - (ev.clientY - drag.sy) / r.height * S.vb.h;
+    if (Math.abs(ev.clientX - drag.sx) + Math.abs(ev.clientY - drag.sy) > 3) drag.moved = true;
+    applyViewBox();
+  }
+});
+svg.addEventListener("pointerup", () => {
+  svg.classList.remove("panning");
+  if (drag && !drag.moved){
+    if (drag.kind === "node") S.sel = {type: "node", id: drag.name};
+    else if (drag.edge) S.sel = {type: "edge", id: drag.edge};
+    else S.sel = null;
+    render();
+  }
+  drag = null;
+});
+svg.addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const w = toWorld(ev), k = ev.deltaY > 0 ? 1.12 : 1 / 1.12;
+  S.vb = {x: w.x - (w.x - S.vb.x) * k, y: w.y - (w.y - S.vb.y) * k, w: S.vb.w * k, h: S.vb.h * k};
+  applyViewBox();
+}, {passive: false});
+
+$("viewlist").addEventListener("click", ev => {
+  const row = ev.target.closest("[data-view]");
+  if (row) selectView(row.dataset.view, false);
+});
+for (const id of ["t_facts", "t_dims", "t_mets", "t_err"]) $(id).addEventListener("change", render);
+$("fitbtn").addEventListener("click", fit);
+
+// ---- MCP modal --------------------------------------------------------------
+$("mcpbtn").addEventListener("click", async () => {
+  $("modal").className = "open";
+  const s = await j("/api/mcp-snippets");
+  const snip = (title, body) => `<div class="snip"><div class="bar"><b>${title}</b>
+    <button data-copy="${esc(body)}">Copy</button></div><pre>${esc(body)}</pre></div>`;
+  $("snips").innerHTML =
+    snip("Claude Code", s.claude_code) +
+    snip("Claude Desktop — claude_desktop_config.json", s.claude_desktop) +
+    snip("Cursor — .cursor/mcp.json", s.cursor);
+});
+$("mclose").addEventListener("click", () => $("modal").className = "");
+$("modal").addEventListener("click", ev => {
+  if (ev.target === $("modal")) $("modal").className = "";
+  const b = ev.target.closest("[data-copy]");
+  if (b){ navigator.clipboard.writeText(b.dataset.copy); b.textContent = "Copied ✓";
+          setTimeout(() => b.textContent = "Copy", 1200); }
+});
+
+// ---- boot + 1.5 s hot-reload poll ------------------------------------------
+refresh(true).catch(e => { $("vname").textContent = "error"; $("lintpill").textContent = String(e); });
+setInterval(() => refresh(false).catch(() => {}), 1500);
+</script>
+</body>
+</html>

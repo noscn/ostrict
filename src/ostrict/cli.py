@@ -1,4 +1,4 @@
-"""Command line: `ostrict lint|compile|eval|export|import|scaffold`."""
+"""Command line: `ostrict lint|compile|eval|export|import|scaffold|ui`."""
 
 from __future__ import annotations
 
@@ -135,6 +135,26 @@ def cmd_scaffold(args) -> int:
     return 0 if result.report.ok else 1  # the draft is still written: it is a starting point, not a gate
 
 
+def cmd_ui(args) -> int:
+    try:
+        import uvicorn
+
+        from .ui.app import create_app
+    except ImportError:
+        print('Install UI extras with: pip install "ostrict[ui]"', file=sys.stderr)
+        return 1
+    app = create_app(args.path, lint_config=_lint_config(args.config))
+    url = f"http://{args.host}:{args.port}"
+    print(f"ostrict ui serving {url}  (read-only — Ctrl+C to stop)")
+    if not args.no_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(0.6, webbrowser.open, args=(url,)).start()
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ostrict")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -198,6 +218,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     sp.add_argument("-o", "--output", default=None, help="output file (stdout if omitted)")
     sp.set_defaults(fn=cmd_scaffold)
+
+    sp = sub.add_parser("ui", help="serve the local read-only visual studio (join DAG + linter overlay)")
+    sp.add_argument("path", nargs="?", default=None,
+                    help="a view file, a folder of views, or an ostrict.yml config "
+                         "(default: $OSTRICT_CONFIG or ./ostrict.yml)")
+    sp.add_argument("--config", default=None, help="ostrict.yml whose lint: section to apply")
+    sp.add_argument("--host", default="127.0.0.1")
+    sp.add_argument("--port", type=int, default=8501)
+    sp.add_argument("--no-browser", action="store_true", help="do not auto-open the browser")
+    sp.set_defaults(fn=cmd_ui)
 
     args = p.parse_args(argv)
     try:
