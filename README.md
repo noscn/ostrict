@@ -21,45 +21,41 @@ This project makes the semantic model a **blueprint, never a materialization**:
         ──compile(request)──▶ one deterministic SQL statement ──connector──▶ rows
 ```
 
-- **Dual input, one AST.** `CREATE SEMANTIC VIEW` DDL (human-authored) and a
-  native YAML contract (automation-friendly) build byte-identical models.
-- **Static ground rules (SV-R1..R10).** Primary keys and grain comments, a
-  directed many-to-one join DAG with exactly one path between any two tables,
-  no numeric dimensions, no `CURRENT_DATE`, snapshot metrics declared
-  `NON ADDITIVE BY`, globally unique field names and synonyms, a security
-  deny-list, comment templates. `ostrict lint` blocks CI on ERRORs.
-- **Deterministic compilation.** Same request, same SQL, byte for byte. Joins
-  only walk child→parent (zero fan-out, enforced); metrics of different grains
-  drill across via `UNION ALL`; derived ratios divide NULL-safely; every
-  expression is built as a sqlglot AST — no string concatenation anywhere.
-- **One definition, any warehouse — zero lock-in.** The same view file runs
-  free on local DuckDB, exchanges via OSI, and compiles unchanged for
-  BigQuery, Snowflake or Postgres; partition bounds land inside each table's
-  own subquery on every dialect.
-- **FinOps guardrails.** At least one metric per query (no raw dumps),
-  partition filters required and pushed into each table's subquery (the only
-  placement BigQuery honors on joined tables), `LIMIT` injected and capped,
-  BigQuery dry-run byte ceiling.
-- **MCP server (mcp ≥ 2).** Five tools: `list_semantic_views`,
+- **Contract & CI linter (SV-R1..R10).** One canonical AST from either input —
+  `CREATE SEMANTIC VIEW` DDL or native YAML (`.yaml`/`.yml`) — checked for
+  primary keys and grains, a many-to-one join forest (exactly one path between
+  any two tables), no numeric dimensions, no `CURRENT_DATE`, a security
+  deny-list and globally unique names. `ostrict lint` blocks CI on ERRORs.
+- **Deterministic, FinOps-safe compilation.** Same request, same SQL, byte for
+  byte — built from sqlglot ASTs, never string concatenation. Joins only walk
+  child→parent (zero fan-out), different grains drill across via `UNION ALL`,
+  a metric is always required, partition filters are pushed into each table's
+  own subquery (the only placement BigQuery honors on joined tables), `LIMIT`
+  is injected and capped, and a dry-run byte ceiling refuses runaway scans.
+  One view file compiles unchanged for BigQuery, Snowflake, Postgres or
+  DuckDB, and exchanges via OSI — no lock-in to outgrow.
+- **Scaffolding & studio.** `ostrict scaffold` drafts a lint-clean view from
+  dbt metadata or a live schema; `ostrict ui` is a local, strictly read-only
+  join-DAG with every finding pinned to the node or edge it concerns;
+  `ostrict export|import` speak OSI losslessly.
+- **MCP server & deterministic eval.** Five tools (`list_semantic_views`,
   `inspect_semantic_view`, `get_dimension_values`, `compile_semantic_query`,
-  `execute_semantic_query`. The agent picks names from the catalog and never
-  writes SQL; every refusal carries an error code and a repair hint.
-- **Golden Questions eval.** `ostrict eval cases.yaml` grades
-  answer/refuse/clarify cases against DuckDB deterministically — no LLM judge.
-- **Scaffolding.** `ostrict scaffold --from-dbt <project>` (or `--connector`
-  for a live schema) drafts a view that passes SV-R1..R10 on its first lint:
-  deny-listed columns dropped, keys kept out of dimensions, colliding names
-  prefixed, the join graph kept to a forest — everything else lands as
-  `# TODO` comments for a human.
-- **OSI interchange.** `ostrict export|import` converts views to and
-  from Open Semantic Interchange YAML/JSON losslessly — guardrails travel in a
-  namespaced `custom_extensions.strict_semantic` block, and every import must
-  pass the full SV-R1..R10 gate.
-- **Open-core plugin hooks.** `on_model_loaded`, `before_compile` (RBAC filter
-  injection), `after_compile` (cache/lineage), `on_query_executed` (audit).
-- **Visual studio.** `ostrict ui` serves a local, strictly read-only join-DAG
-  and linter overlay — role-colored tables, findings pinned to the node or
-  edge they concern, hot reload on save — with no Node.js and no build step.
+  `execute_semantic_query`) for AI agents that never write SQL, open-core
+  plugin hooks (RBAC filter injection, audit), and a Golden Questions eval
+  (`ostrict eval`) graded deterministically — no LLM judge.
+
+A refusal is a feature here. When an agent asks for a grouping that would
+double count — a sibling branch of the join forest — the compiler answers with
+the fix instead of wrong numbers:
+
+```
+$ ostrict compile tests/fixtures/ecommerce.yaml -m order_count -d category \
+      -f '{"field":"order_date","op":">=","value":"2026-01-01"}' --dialect bigquery
+error [ERR_FANOUT_JOIN_FORBIDDEN]: dimension 'category' lives on 'products',
+  which is not an ancestor of 'orders' (base table of order_count); joining
+  downward or across would duplicate rows
+hint: query that dimension with metrics based on its own table, or drop it
+```
 
 ## Quickstart
 
