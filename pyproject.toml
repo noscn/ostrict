@@ -1,6 +1,6 @@
 [project]
 name = "ostrict"
-version = "0.4.0"
+version = "0.4.1"
 description = "Strict semantic-view linter and deterministic, FinOps-safe SQL compiler with an MCP server for AI data agents."
 authors = [{ name = "Son Chau", email = "46123450+noscn@users.noreply.github.com" }]
 readme = "README.md"

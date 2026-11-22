@@ -6,12 +6,14 @@
       "name": "customers",
       "schema": "shop",
       "alias": "customers",
+      "tags": ["core"],
       "description": "One registered customer per row, with home region.",
       "config": {"materialized": "table"},
       "columns": {
         "customer_id": {"name": "customer_id", "data_type": "integer", "description": ""},
-        "region": {"name": "region", "data_type": "varchar", "description": "Customer home region used for market reporting."},
+        "region": {"name": "region", "data_type": "varchar", "description": "Customer home region used for market reporting.", "meta": {"semantic": {"values": ["EU", "US", "APAC"]}}},
         "user_email": {"name": "user_email", "data_type": "varchar", "description": "Login email of the customer account."},
+        "phone": {"name": "phone", "description": "Contact phone number of the customer."},
         "signup_date": {"name": "signup_date", "data_type": "date", "description": "Date the customer signed up."}
       }
     },
@@ -20,6 +22,7 @@
       "name": "orders",
       "schema": "shop",
       "alias": "orders",
+      "tags": ["core"],
       "description": "Customer orders placed in the shop.",
       "config": {"materialized": "incremental", "partition_by": {"field": "order_date", "data_type": "date"}},
       "columns": {
@@ -35,15 +38,19 @@
       "name": "shipments",
       "schema": "shop",
       "alias": "shipments_v",
-      "description": "Physical shipments fulfilling orders.",
+      "tags": [],
+      "description": "One row per parcel shipped from the warehouse.",
       "config": {"materialized": "table"},
       "columns": {
-        "shipment_id": {"name": "shipment_id", "data_type": "integer", "description": ""},
-        "order_id": {"name": "order_id", "data_type": "integer", "description": ""},
-        "customer_id": {"name": "customer_id", "data_type": "integer", "description": ""},
-        "shipped_at": {"name": "shipped_at", "data_type": "timestamp", "description": "Moment the parcel left the warehouse."},
-        "status": {"name": "status", "data_type": "varchar", "description": "Delivery status of the shipment."},
-        "weight_kg": {"name": "weight_kg", "data_type": "float", "description": "Parcel weight in kilograms."}
+        "shipment_id": {"name": "shipment_id", "description": ""},
+        "order_id": {"name": "order_id", "description": ""},
+        "customer_id": {"name": "customer_id", "description": ""},
+        "shipped_at": {"name": "shipped_at", "description": "Moment the parcel left the warehouse."},
+        "status": {"name": "status", "description": "Delivery status of the shipment."},
+        "weight_kg": {"name": "weight_kg", "description": "Parcel weight in kilograms."},
+        "line_no": {"name": "line_no", "description": "Position of the parcel within its order's packing list."},
+        "priority_score": {"name": "priority_score", "description": "Internal routing priority bucket for the parcel.", "meta": {"semantic": {"kind": "dimension"}}},
+        "internal_hash": {"name": "internal_hash", "description": "Opaque row checksum used by the loader.", "meta": {"semantic": {"kind": "skip"}}}
       }
     },
     "test.shop_dbt.unique_customers_customer_id.c1": {
@@ -69,6 +76,12 @@
       "name": "relationships_orders_customer_id__customer_id__ref_customers_",
       "attached_node": "model.shop_dbt.orders",
       "test_metadata": {"name": "relationships", "kwargs": {"column_name": "customer_id", "field": "customer_id", "to": "ref('customers')", "model": "{{ get_where_subquery(ref('orders')) }}"}}
+    },
+    "test.shop_dbt.accepted_values_orders_status.o3": {
+      "resource_type": "test",
+      "name": "accepted_values_orders_status__completed__cancelled__refunded",
+      "attached_node": "model.shop_dbt.orders",
+      "test_metadata": {"name": "accepted_values", "kwargs": {"column_name": "status", "values": ["completed", "cancelled", "refunded"], "model": "{{ get_where_subquery(ref('orders')) }}"}}
     },
     "test.shop_dbt.unique_shipments_shipment_id.s1": {
       "resource_type": "test",

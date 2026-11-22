@@ -155,3 +155,28 @@ the draft passes SV-R1..R10 at generation time:
     fails lint (say, a table with no date column) is written anyway, with the
     report on stderr and exit 1 — it is a starting point for a human — while
     `ostrict import` keeps refusing to write an invalid conversion.
+
+# v0.4.1 — scaffold hardening (from a real 171-model dry run)
+
+Running the scaffold against a large camelCase dbt project with no declared
+column types shaped these fixes:
+
+24. **Types come from dbt's own artifacts, not guesses.** `catalog.json`
+    (`dbt docs generate`) is auto-discovered next to the manifest or under
+    `target/` and fills every column type the yml leaves out — zero scanning;
+    an explicit `data_type` still wins. The opt-in `--infer-types` covers
+    projects without a catalog by drafting `*At`/`*_at`/`*Date`/`*_date`
+    columns as time dimensions, each inference counted in the header.
+25. **Declared knowledge is reused before anything is sampled.**
+    `accepted_values` tests and `meta: {semantic: {values: [...]}}` become
+    `Values:` directives in the author's order, and `meta.semantic.kind`
+    (fact | dimension | skip) pins classification, so a regenerated scaffold
+    keeps an engineer's tuning.
+26. **Flag, don't silently pass.** `--config` applies the project's lint
+    config at generation time (`security_deny` is now configurable alongside
+    the allow-list and exemptions); PII-looking columns that survive the
+    deny-list are kept but flagged `TODO(PII-check)`; camelCase/`*_id`
+    foreign keys nobody declared become paste-ready candidate-join snippets
+    instead of silent orphans; dev-looking schemas (`dev_*`, `sandbox_*`) are
+    called out; sequence-like numerics get a FACT but no sample SUM, while
+    every keyed table gets a COUNT metric.

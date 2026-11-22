@@ -1,0 +1,39 @@
+{
+  "metadata": {"dbt_version": "1.8.0"},
+  "nodes": {
+    "model.shop_dbt.customers": {
+      "metadata": {"type": "table", "schema": "shop", "name": "customers"},
+      "columns": {
+        "customer_id": {"name": "customer_id", "type": "INT64", "index": 1},
+        "region": {"name": "region", "type": "STRING", "index": 2},
+        "user_email": {"name": "user_email", "type": "STRING", "index": 3},
+        "phone": {"name": "phone", "type": "STRING", "index": 4},
+        "signup_date": {"name": "signup_date", "type": "DATE", "index": 5}
+      }
+    },
+    "model.shop_dbt.orders": {
+      "metadata": {"type": "table", "schema": "shop", "name": "orders"},
+      "columns": {
+        "order_id": {"name": "order_id", "type": "INT64", "index": 1},
+        "customer_id": {"name": "customer_id", "type": "INT64", "index": 2},
+        "order_date": {"name": "order_date", "type": "DATE", "index": 3},
+        "status": {"name": "status", "type": "STRING", "index": 4},
+        "total_amount": {"name": "total_amount", "type": "NUMERIC", "index": 5}
+      }
+    },
+    "model.shop_dbt.shipments": {
+      "metadata": {"type": "table", "schema": "shop", "name": "shipments_v"},
+      "columns": {
+        "shipment_id": {"name": "shipment_id", "type": "INT64", "index": 1},
+        "order_id": {"name": "order_id", "type": "INT64", "index": 2},
+        "customer_id": {"name": "customer_id", "type": "INT64", "index": 3},
+        "shipped_at": {"name": "shipped_at", "type": "TIMESTAMP", "index": 4},
+        "status": {"name": "status", "type": "STRING", "index": 5},
+        "weight_kg": {"name": "weight_kg", "type": "BIGNUMERIC", "index": 6},
+        "line_no": {"name": "line_no", "type": "INT64", "index": 7},
+        "priority_score": {"name": "priority_score", "type": "INT64", "index": 8},
+        "internal_hash": {"name": "internal_hash", "type": "STRING", "index": 9}
+      }
+    }
+  }
+}

@@ -86,4 +86,5 @@ def sample_values(connector: WarehouseConnector, source: str, column: str, limit
         .where(exp.column(column).is_(exp.Null()).not_())
         .limit(limit)
     )
-    return [r[column] for r in connector.execute(q.sql(dialect=connector.dialect))]
+    rows = connector.execute(q.sql(dialect=connector.dialect))
+    return sorted((r[column] for r in rows), key=str)  # deterministic regardless of scan order
