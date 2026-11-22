@@ -1,6 +1,6 @@
 [project]
 name = "ostrict"
-version = "0.4.1"
+version = "0.5.0"
 description = "Strict semantic-view linter and deterministic, FinOps-safe SQL compiler with an MCP server for AI data agents."
 authors = [{ name = "Son Chau", email = "46123450+noscn@users.noreply.github.com" }]
 readme = "README.md"
@@ -24,7 +24,8 @@ classifiers = [
 mcp = ["mcp>=2"]
 bigquery = ["google-cloud-bigquery>=3"]
 duckdb = ["duckdb>=1"]
-dev = ["pytest>=8", "duckdb>=1", "ruff>=0.6", "mcp>=2"]
+ui = ["fastapi>=0.115", "uvicorn>=0.32"]
+dev = ["pytest>=8", "duckdb>=1", "ruff>=0.6", "mcp>=2", "fastapi>=0.115", "uvicorn>=0.32", "httpx>=0.27"]
 
 [project.urls]
 Repository = "https://github.com/noscn/ostrict"
@@ -43,6 +44,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"ostrict.ui" = ["static/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -180,3 +180,16 @@ column types shaped these fixes:
     instead of silent orphans; dev-looking schemas (`dev_*`, `sandbox_*`) are
     called out; sequence-like numerics get a FACT but no sample SUM, while
     every keyed table gets a COUNT metric.
+
+# v0.5.0 — `ostrict ui`
+
+27. **The studio is a viewer, never an editor.** `ostrict ui` (optional
+    `[ui]` extra: FastAPI + uvicorn) serves one self-contained HTML page —
+    no Node.js, no build step, pure SVG — with zero endpoints that write to
+    `.yaml`/`.sql` files, no SQL runner and no data grid. Broken specs still
+    render, with every lint finding attached to the node or edge it concerns
+    (SV-R3.5 multi-path findings land on the child table, where the resolver
+    reports them), because debugging broken models is the point. Hot reload
+    reuses the MCP server's `(mtime_ns, size)` fingerprint pattern; files
+    that fail to parse are listed with their `ERR_PARSE` message instead of
+    taking the studio down.

@@ -53,12 +53,15 @@ This project makes the semantic model a **blueprint, never a materialization**:
   pass the full SV-R1..R10 gate.
 - **Open-core plugin hooks.** `on_model_loaded`, `before_compile` (RBAC filter
   injection), `after_compile` (cache/lineage), `on_query_executed` (audit).
+- **Visual studio.** `ostrict ui` serves a local, strictly read-only join-DAG
+  and linter overlay — role-colored tables, findings pinned to the node or
+  edge they concern, hot reload on save — with no Node.js and no build step.
 
 ## Quickstart
 
 ```bash
 python -m venv .venv && .venv/bin/pip install -e '.[dev,mcp]'
-.venv/bin/python -m pytest                                  # 87 tests
+.venv/bin/python -m pytest                                  # 93 tests
 .venv/bin/ostrict lint tests/fixtures/ecommerce.sql
 .venv/bin/ostrict eval tests/fixtures/golden_questions.yaml
 .venv/bin/ostrict compile tests/fixtures/ecommerce.yaml \
@@ -142,6 +145,24 @@ deny-listed column — becomes a `# TODO` comment instead, name-matched foreign
 keys become paste-ready candidate-join snippets, and `ostrict scaffold`'s
 output is accepted by `ostrict lint` with zero errors.
 
+## Visual studio
+
+See the model instead of scrolling it:
+
+```bash
+pip install "ostrict[ui]"
+ostrict ui semantic/        # a view file, a folder of views, or your ostrict.yml
+```
+
+`ostrict ui` serves a local read-only studio (default `http://127.0.0.1:8501`;
+pass `--port` if something like Streamlit already owns 8501): an auto-laid-out
+join DAG with role-colored tables (fact / dimension / snapshot / role-playing),
+every SV-R1..R10 finding attached to the node or edge it concerns, an inspector
+with grains, partitions, fields and values, hot reload on file save, and a
+"Connect AI Agent" panel with copy-paste MCP configs for Claude Desktop,
+Claude Code and Cursor. Strictly read-only — the YAML in Git stays the source
+of truth — and broken specs still render, because debugging them is the point.
+
 ## Querying
 
 ```json
@@ -184,6 +205,7 @@ src/ostrict/
 ├── parsers/       # CREATE SEMANTIC VIEW DDL (token-stream) + native YAML -> one builder
 ├── interchange/   # OSI (Open Semantic Interchange) export/import adapter
 ├── scaffold/      # draft views from dbt metadata or INFORMATION_SCHEMA
+├── ui/            # local read-only visual studio (join DAG + linter overlay)
 ├── linter/        # SV-R1..R10 engine: structure / logic / governance rules
 ├── compiler/      # join-graph resolver, FinOps guardrails, sqlglot SQL builder
 ├── connectors/    # DuckDB, BigQuery (dry-run + byte cap), protocol
