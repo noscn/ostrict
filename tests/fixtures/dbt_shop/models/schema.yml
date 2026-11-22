@@ -1,0 +1,86 @@
+version: 2
+
+models:
+  - name: customers
+    description: One registered customer per row, with home region.
+    config:
+      tags: [core]
+    columns:
+      - name: customer_id
+        data_type: integer
+        tests: [unique, not_null]
+      - name: region
+        data_type: varchar
+        description: Customer home region used for market reporting.
+        meta:
+          semantic:
+            values: [EU, US, APAC]
+      - name: user_email
+        data_type: varchar
+        description: Login email of the customer account.
+      - name: phone
+        description: Contact phone number of the customer.
+      - name: signup_date
+        data_type: date
+        description: Date the customer signed up.
+
+  - name: orders
+    description: Customer orders placed in the shop.
+    config:
+      tags: [core]
+    columns:
+      - name: order_id
+        data_type: integer
+        tests: [unique, not_null]
+      - name: customer_id
+        data_type: integer
+        tests:
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: order_date
+        data_type: date
+        description: Date the order was placed.
+      - name: status
+        data_type: varchar
+        description: Lifecycle status of the order.
+        tests:
+          - accepted_values:
+              values: [completed, cancelled, refunded]
+      - name: total_amount
+        data_type: numeric
+        description: Order total in account currency.
+
+  - name: shipments
+    description: One row per parcel shipped from the warehouse.
+    columns:
+      - name: shipment_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - relationships:
+              to: ref('orders')
+              field: order_id
+      - name: customer_id
+        tests:
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: shipped_at
+        description: Moment the parcel left the warehouse.
+      - name: status
+        description: Delivery status of the shipment.
+      - name: weight_kg
+        description: Parcel weight in kilograms.
+      - name: line_no
+        description: Position of the parcel within its order's packing list.
+      - name: priority_score
+        description: Internal routing priority bucket for the parcel.
+        meta:
+          semantic:
+            kind: dimension
+      - name: internal_hash
+        description: Opaque row checksum used by the loader.
+        meta:
+          semantic:
+            kind: skip

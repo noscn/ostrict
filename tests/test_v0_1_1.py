@@ -8,12 +8,12 @@ import pytest
 import sqlglot
 from conftest import FIXTURES, JAN
 
-from strict_semantic.compiler import compile_dimension_values, compile_semantic_query
-from strict_semantic.compiler.guardrails import _bounds_from
-from strict_semantic.models.errors import CompilerError
-from strict_semantic.models.query import Filter
-from strict_semantic.parsers import load_view
-from strict_semantic.plugins.base import CompilerPlugin
+from ostrict.compiler import compile_dimension_values, compile_semantic_query
+from ostrict.compiler.guardrails import _bounds_from
+from ostrict.models.errors import CompilerError
+from ostrict.models.query import Filter
+from ostrict.parsers import load_view
+from ostrict.plugins.base import CompilerPlugin
 
 
 def test_in_filter_yields_min_max_bounds(view):
@@ -95,9 +95,10 @@ def test_mcp_state_reparses_specs_only_on_change(tmp_path, monkeypatch):
     views_dir.mkdir()
     spec = views_dir / "ecommerce.yaml"
     shutil.copy(FIXTURES / "ecommerce.yaml", spec)
-    (tmp_path / "strict_semantic.yml").write_text("views: ./views\nconnector:\n  type: duckdb\n")
-    monkeypatch.setenv("STRICT_SEMANTIC_CONFIG", str(tmp_path / "strict_semantic.yml"))
-    from strict_semantic.mcp_server.server import _State
+    (tmp_path / "ostrict.yml").write_text("views: ./views\nconnector:\n  type: duckdb\n")
+    monkeypatch.delenv("OSTRICT_CONFIG", raising=False)
+    monkeypatch.setenv("STRICT_SEMANTIC_CONFIG", str(tmp_path / "ostrict.yml"))
+    from ostrict.mcp_server.server import _State
 
     st = _State()
     a = st.views()

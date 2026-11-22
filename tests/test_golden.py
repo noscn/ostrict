@@ -11,13 +11,13 @@ import duckdb
 import pytest
 from conftest import FIXTURES, JAN, normalize
 
-from strict_semantic.compiler import compile_semantic_query
-from strict_semantic.connectors.duckdb import DuckDBConnector
-from strict_semantic.eval.runner import run_eval
-from strict_semantic.linter import lint
-from strict_semantic.models.errors import CompilerError
-from strict_semantic.parsers import load_view
-from strict_semantic.parsers.common import build_view
+from ostrict.compiler import compile_semantic_query
+from ostrict.connectors.duckdb import DuckDBConnector
+from ostrict.eval.runner import run_eval
+from ostrict.linter import lint
+from ostrict.models.errors import CompilerError
+from ostrict.parsers import load_view
+from ostrict.parsers.common import build_view
 
 
 def codes(raw):

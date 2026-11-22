@@ -33,7 +33,7 @@ class BigQueryConnector:
         )
         self.max_bytes = max_bytes
         self.location = location
-        self.labels = labels or {"tool": "strict-semantic-mcp"}
+        self.labels = labels or {"tool": "ostrict"}
 
     def estimate_bytes(self, sql: str) -> int | None:
         cfg = self._bq.QueryJobConfig(dry_run=True, use_query_cache=False)

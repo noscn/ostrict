@@ -115,3 +115,68 @@ three clarifications:
     `Values:` directive), so OSI `fields[].values` apply after construction
     with `_merge`'s agree-or-fail semantics, and `to_native_yaml` appends the
     directive when only the OSI field carried the enumeration.
+
+# v0.3.0 — renamed to ostrict
+
+The project and package were renamed from `strict-semantic-mcp` /
+`strict_semantic` to **ostrict** (**O**SI + **strict**; unlike the myth,
+Ostrict never buries its head in the sand when AI hallucinates SQL).
+Compatibility was kept deliberately:
+
+18. **`import strict_semantic` still works.** A shim package re-exports the
+    public API, and a meta-path finder aliases every `strict_semantic.<module>`
+    to the *same* `ostrict.<module>` object (one copy of every class, so
+    isinstance and equality behave), raising one `DeprecationWarning`.
+19. **Entry points and config.** `strict-semantic` / `strict-semantic-mcp`
+    remain as aliases of `ostrict` / `ostrict-mcp`, and
+    `STRICT_SEMANTIC_CONFIG` is honored when `OSTRICT_CONFIG` is unset; the
+    default config file is now `./ostrict.yml`.
+20. **The OSI extension namespace stays `custom_extensions.strict_semantic`**,
+    so documents exported by 0.2.x import unchanged — renaming it would be a
+    format break for a cosmetic win. On PyPI, new releases ship as `ostrict`;
+    `strict-semantic-mcp` stays at 0.2.0.
+
+# v0.4.0 — `ostrict scaffold`
+
+Draft generation from dbt metadata or a live `INFORMATION_SCHEMA`, built so
+the draft passes SV-R1..R10 at generation time:
+
+21. **The join graph is forest-ified, never repaired.** Candidate
+    relationships are accepted first-come while they connect new components
+    (union-find); a self-reference or a second path between two tables moves
+    into a `# TODO` comment with a paste-ready snippet (SV-R3.1 / SV-R3.5),
+    and a relationship onto a partial parent key is skipped the same way
+    (SV-R3.2).
+22. **Heuristics are labeled, never hidden.** Connector mode guesses primary
+    keys by name convention (`<singular>_id`, `id`, else the first column
+    with a note) and infers joins only onto confidently-keyed parents; every
+    guess lands in the TODO header and on stderr.
+23. **`scaffold` writes drafts, `import` gates models.** A draft that still
+    fails lint (say, a table with no date column) is written anyway, with the
+    report on stderr and exit 1 — it is a starting point for a human — while
+    `ostrict import` keeps refusing to write an invalid conversion.
+
+# v0.4.1 — scaffold hardening (from a real 171-model dry run)
+
+Running the scaffold against a large camelCase dbt project with no declared
+column types shaped these fixes:
+
+24. **Types come from dbt's own artifacts, not guesses.** `catalog.json`
+    (`dbt docs generate`) is auto-discovered next to the manifest or under
+    `target/` and fills every column type the yml leaves out — zero scanning;
+    an explicit `data_type` still wins. The opt-in `--infer-types` covers
+    projects without a catalog by drafting `*At`/`*_at`/`*Date`/`*_date`
+    columns as time dimensions, each inference counted in the header.
+25. **Declared knowledge is reused before anything is sampled.**
+    `accepted_values` tests and `meta: {semantic: {values: [...]}}` become
+    `Values:` directives in the author's order, and `meta.semantic.kind`
+    (fact | dimension | skip) pins classification, so a regenerated scaffold
+    keeps an engineer's tuning.
+26. **Flag, don't silently pass.** `--config` applies the project's lint
+    config at generation time (`security_deny` is now configurable alongside
+    the allow-list and exemptions); PII-looking columns that survive the
+    deny-list are kept but flagged `TODO(PII-check)`; camelCase/`*_id`
+    foreign keys nobody declared become paste-ready candidate-join snippets
+    instead of silent orphans; dev-looking schemas (`dev_*`, `sandbox_*`) are
+    called out; sequence-like numerics get a FACT but no sample SUM, while
+    every keyed table gets a COUNT metric.
