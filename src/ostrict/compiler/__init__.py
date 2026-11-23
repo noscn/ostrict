@@ -92,6 +92,7 @@ def compile_semantic_query(
 ) -> CompiledQuery:
     if isinstance(request, dict):
         request = SemanticQueryRequest.model_validate(request)
+    plugins = list(plugins)  # a one-shot iterator must survive every hook pass
     _ensure_valid(view, lint_config)  # ERROR findings block compilation
     _notify_model_loaded(view, plugins)
     for p in plugins:
@@ -113,6 +114,7 @@ def compile_dimension_values(
     config: CompileConfig | None = None,
     lint_config: LintConfig | None = None,
 ) -> CompiledQuery:
+    plugins = list(plugins)  # a one-shot iterator must survive every hook pass
     _ensure_valid(view, lint_config)
     flts = [f if isinstance(f, Filter) else Filter.model_validate(f) for f in filters]
     # Plugins see value lookups too, or RBAC filters injected in before_compile
