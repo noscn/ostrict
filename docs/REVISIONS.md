@@ -235,3 +235,15 @@ column types shaped these fixes:
     executed query is now capped at the connector (`max_rows`) with the
     request's own limit and `truncated` stays exact, instead of fetching
     unbounded rows and guessing.
+
+# v0.5.3 — re-audit fix (F11)
+
+30. **A generator of plugins hooks everything, not just the first pass.**
+    `compile_semantic_query` and `compile_dimension_values` iterate `plugins`
+    several times (model-loaded notification, `before_compile`,
+    `after_compile`), so a one-shot iterator was consumed by the first pass:
+    `on_model_loaded` fired while every later hook was silently skipped —
+    dangerous when a plugin injects policy filters the caller believes are
+    active. All three public entry points now materialize `plugins` once up
+    front (`execute_semantic_query` already did), with generator regression
+    tests for each.
