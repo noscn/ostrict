@@ -56,18 +56,25 @@ def read_schema(connector: WarehouseConnector, models: list[str]) -> list[TableD
             d.name = re.sub(r"[^A-Za-z0-9_]", "_", f"{schema}_{tname}")
             d.notes.append(f"renamed from '{tname}': the same table name exists in another selected schema")
 
-    confident: dict[str, TableDraft] = {}
-    for d in drafts.values():
-        d.primary_key, note = guess_primary_key(d.name, [c.name for c in d.columns])
+    confident: dict[tuple[str, str], TableDraft] = {}
+    for (schema, tname), d in drafts.items():
+        # the PK heuristic works on the PHYSICAL table name: a draft renamed to
+        # 's1_orders' must still find 'order_id', not hunt for 's1_order_id'
+        d.primary_key, note = guess_primary_key(tname, [c.name for c in d.columns])
         if note:
             d.notes.append(note)
         else:
-            confident[d.name] = d
-    for d in drafts.values():
+            confident[(schema, tname)] = d
+    for (schema, _), d in drafts.items():
         for c in d.columns:
             if not c.name.endswith("_id"):
                 continue
             parents = [p for p in confident.values() if p is not d and p.primary_key == [c.name]]
+            if len(parents) > 1:  # the parent name exists in several schemas: prefer the child's own
+                parents = [
+                    p for (ps, _), p in confident.items()
+                    if p is not d and p.primary_key == [c.name] and ps == schema
+                ]
             if len(parents) == 1:
                 d.relationships.append(RelDraft(column=c.name, parent=parents[0].name, parent_column=c.name))
                 d.notes.append(f"relationship to '{parents[0].name}' inferred from column name '{c.name}'")
