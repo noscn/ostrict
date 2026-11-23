@@ -6,7 +6,7 @@ from .models.errors import CompilerError, LintFinding, Severity
 from .models.query import CompiledQuery, Filter, QueryResult, SemanticQueryRequest
 from .parsers import load_view, load_views
 
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 __all__ = [
     "CompiledQuery",
     "CompilerError",

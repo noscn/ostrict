@@ -274,3 +274,18 @@ column types shaped these fixes:
     visible even past the "+N more" fold — and the chip's ✕ (or Esc)
     restores the full view. Still one self-contained HTML file: no
     external libraries, same endpoints, same 1.5 s hot-reload poll.
+
+# v0.5.5 — audit round 4: F11 proven end to end
+
+32. **A policy filter injected by a generator-supplied plugin reaches the
+    rows.** Round 4 re-raised F11 and the CI asks against an older snapshot:
+    re-verification shows every public entry point has materialized
+    ``plugins`` since v0.5.3 (the compiler's three entry points are the only
+    plugin consumers in the package — the MCP server takes none), and the CI
+    version matrix (3.10–3.13) with per-module coverage landed separately.
+    The genuinely missing piece was an end-to-end regression: the v0.5.3
+    generator tests assert hook order only, never that ``before_compile``'s
+    rewritten request constrains execution. A plugin passed as a one-shot
+    generator now proves all four lifecycle hooks fire and that its injected
+    RBAC filter (``region = 'EU'``) actually gates the rows DuckDB returns —
+    the exact silent-skip scenario that made F11 dangerous.
