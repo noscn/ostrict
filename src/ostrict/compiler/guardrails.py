@@ -17,6 +17,7 @@ from sqlglot import exp
 from ..models.ast import Dimension, LogicalTable, SemanticView
 from ..models.errors import (
     ERR_EXCESSIVE_LIMIT,
+    ERR_INVALID_FILTER,
     ERR_METRIC_REQUIRED,
     ERR_MISSING_PARTITION_FILTER,
     ERR_SNAPSHOT_AGGREGATION_VIOLATION,
@@ -92,6 +93,14 @@ def _bounds_from(filters: list[tuple[Dimension, str | None, Filter]], dimension:
         elif op in ("<", "<=") and _parse_iso(v):
             uppers.append(str(v))
         elif op == "in" and isinstance(v, (list, tuple)) and v and all(_parse_iso(x) for x in v):
+            if len({_parse_iso(x).tzinfo is not None for x in v}) > 1:
+                raise CompilerError(
+                    ERR_INVALID_FILTER,
+                    f"filter on '{flt.field}': 'in' mixes timezone-aware and timezone-naive "
+                    "date/time values, which cannot be ordered",
+                    hint="write every value in the same form, e.g. all '2026-01-01' "
+                    "or all '2026-01-01T00:00:00+00:00'",
+                )
             vals = sorted((str(x) for x in v), key=_parse_iso)
             lowers.append(vals[0])
             uppers.append(_shift(vals[-1], slack))

@@ -14,6 +14,9 @@ user asks (``--sample-values``): a bounded
 
 from __future__ import annotations
 
+import re
+from collections import Counter
+
 import sqlglot
 from sqlglot import exp
 
@@ -32,16 +35,26 @@ def read_schema(connector: WarehouseConnector, models: list[str]) -> list[TableD
         schema, _, table = m.rpartition(".")
         by_schema.setdefault(schema, []).append(table)
 
-    drafts: dict[str, TableDraft] = {}
+    # drafts are keyed by full (schema, table) identity: the same table name in two
+    # schemas is two physical tables, never one draft with merged columns
+    drafts: dict[tuple[str, str], TableDraft] = {}
     for schema, tabs in sorted(by_schema.items()):
         for row in _columns(connector, schema, tabs):
             tname = str(row["table_name"])
-            if tname not in drafts:
-                drafts[tname] = TableDraft(name=tname, source=f"{schema}.{tname}" if schema else tname, columns=[])
-            drafts[tname].columns.append(ColumnDraft(name=str(row["column_name"]), data_type=str(row["data_type"])))
-    missing = sorted(m for m in models if m.rpartition(".")[2] not in drafts)
+            key = (schema, tname)
+            if key not in drafts:
+                drafts[key] = TableDraft(name=tname, source=f"{schema}.{tname}" if schema else tname, columns=[])
+            drafts[key].columns.append(ColumnDraft(name=str(row["column_name"]), data_type=str(row["data_type"])))
+    missing = sorted(m for m in models if (m.rpartition(".")[0], m.rpartition(".")[2]) not in drafts)
     if missing:
         raise CompilerError(ERR_PARSE, f"not found in information_schema: {', '.join(missing)}")
+
+    # logical names must stay unique view-wide: qualify duplicates with their schema
+    counts = Counter(t for _, t in drafts)
+    for (schema, tname), d in drafts.items():
+        if counts[tname] > 1 and schema:
+            d.name = re.sub(r"[^A-Za-z0-9_]", "_", f"{schema}_{tname}")
+            d.notes.append(f"renamed from '{tname}': the same table name exists in another selected schema")
 
     confident: dict[str, TableDraft] = {}
     for d in drafts.values():
