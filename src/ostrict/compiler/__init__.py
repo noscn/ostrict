@@ -6,6 +6,9 @@ import weakref
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+import sqlglot
+from sqlglot import exp
+
 from ..models.ast import SemanticView
 from ..models.query import CompiledQuery, Filter, QueryResult, SemanticQueryRequest
 from ..plugins.base import CompilerPlugin
@@ -23,6 +26,24 @@ def _ensure_valid(view, lint_config):
     return ensure_valid(view, lint_config)
 
 
+# on_model_loaded memos live OUTSIDE the plugin: a plugin may use __slots__ and
+# have no __dict__ to write into. Weak keys let a dropped plugin free its memo;
+# a plugin that cannot be weakly referenced (or hashed) falls back to an
+# id-keyed entry that lives for the process.
+_MODELS_SEEN: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+_MODELS_SEEN_BY_ID: dict[int, dict[int, weakref.ref]] = {}
+
+
+def _plugin_memo(p: CompilerPlugin) -> dict[int, weakref.ref]:
+    try:
+        memo = _MODELS_SEEN.get(p)
+        if memo is None:
+            memo = _MODELS_SEEN[p] = {}
+        return memo
+    except TypeError:  # __slots__ without __weakref__, or an unhashable plugin
+        return _MODELS_SEEN_BY_ID.setdefault(id(p), {})
+
+
 def _notify_model_loaded(view: SemanticView, plugins: Iterable[CompilerPlugin]) -> None:
     """Fire on_model_loaded once per (plugin instance, view object).
 
@@ -30,7 +51,7 @@ def _notify_model_loaded(view: SemanticView, plugins: Iterable[CompilerPlugin]) 
     loaded". Views are unhashable, so the memo is id-keyed with a weakref
     guard against id reuse."""
     for p in plugins:
-        seen: dict[int, weakref.ref] = p.__dict__.setdefault("_ss_models_seen", {})
+        seen = _plugin_memo(p)
         ref = seen.get(id(view))
         if ref is not None and ref() is view:
             continue
@@ -110,14 +131,42 @@ def execute_semantic_query(
     compiled = compile_semantic_query(
         view, request, dialect=connector.dialect, plugins=plugins, config=config, lint_config=lint_config
     )
-    rows = connector.execute(compiled.sql)
-    cfg = config or CompileConfig()
+    rows, truncated = _execute_probing_limit(connector, compiled)
+    if truncated is None:  # no recognizable LIMIT (a plugin rewrote the statement)
+        cfg = config or CompileConfig()
+        truncated = len(rows) >= (request.limit or cfg.default_limit)
     result = QueryResult(
         columns=compiled.columns,
         rows=rows,
-        truncated=len(rows) >= (request.limit or cfg.default_limit),
+        truncated=truncated,
         sql=compiled.sql,
     )
     for p in plugins:
         p.on_query_executed(view, request, compiled, result)
     return result
+
+
+def _execute_probing_limit(connector, compiled: CompiledQuery) -> tuple[list[dict], bool | None]:
+    """Run the compiled query overfetching ONE row past its LIMIT, so ``truncated``
+    reports a fact — row N+1 exists — instead of guessing from len(rows) == N.
+
+    The reported/auditable SQL stays ``compiled.sql`` (what explain shows for the
+    same request); only the executed statement's LIMIT literal is raised by one,
+    and the extra row is dropped before anyone sees it."""
+    n: int | None = None
+    try:
+        tree = sqlglot.parse_one(compiled.sql, read=connector.dialect or None)
+        lim = tree.args.get("limit")
+        if (
+            isinstance(lim, exp.Limit)
+            and isinstance(lim.expression, exp.Literal)
+            and not lim.expression.is_string
+        ):
+            n = int(lim.expression.this)
+    except Exception:
+        n = None
+    if n is None:
+        return connector.execute(compiled.sql), None
+    lim.set("expression", exp.Literal.number(n + 1))
+    rows = connector.execute(tree.sql(dialect=connector.dialect or None, pretty=True), max_rows=n + 1)
+    return rows[:n], len(rows) > n

@@ -193,3 +193,25 @@ column types shaped these fixes:
     reuses the MCP server's `(mtime_ns, size)` fingerprint pattern; files
     that fail to parse are listed with their `ERR_PARSE` message instead of
     taking the studio down.
+
+# v0.5.1 — external audit hardening (F1–F8)
+
+28. **One filter-expansion path, exact answers at the edges.** An external
+    code-level audit of v0.5.0 produced eight findings; all are fixed. The
+    big one (F1/F4): `get_dimension_values` expanded always-on table filters
+    with a snapshot loop, so a filter chain (A's filter reads B, B's filter
+    reads C) silently dropped C's restriction, and pulled-in tables skipped
+    the child→parent reachability guard. Aggregate and dimension-value
+    queries now share one queue-based `_expand_table_filters`, so the
+    sanctioned lookup path can never drift from the main one again. Also:
+    MCP results keep DECIMAL/NUMERIC values exact as digit strings instead
+    of rounding through float (F2); schema-mode scaffolding keys drafts by
+    `(schema, table)` and renames duplicates instead of merging two
+    same-named tables into one draft (F3); `truncated` is now a fact — the
+    executed statement overfetches one row past LIMIT while the reported
+    SQL keeps the requested limit (F5); an `in` filter mixing
+    timezone-aware and naive date/times is refused as `ERR_INVALID_FILTER`
+    instead of crashing with a `TypeError` (F6); `on_model_loaded`
+    memoization lives outside the plugin instance, so `__slots__` plugins
+    work (F7); and `max_rows=0` now means zero rows, with negative values
+    refused (F8).

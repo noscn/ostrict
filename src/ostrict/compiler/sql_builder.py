@@ -175,6 +175,33 @@ def _guard_reach(
         )
 
 
+def _expand_table_filters(
+    view: SemanticView, graph: Graph, home: str, tables: set[str], metrics: list[Metric]
+) -> list[exp.Expression]:
+    """Always-on filters of every involved table, following the tables each filter's
+    expression pulls in — so a chain (A's filter reads B, B's filter reads C) applies
+    B's and C's filters too — with every dependency held to the same child->parent
+    reachability rule as any other reference. Mutates ``tables``. Shared by aggregate
+    and dimension-value queries, so the sanctioned lookup path cannot drift."""
+    conditions: list[exp.Expression] = []
+    queue = sorted(tables)
+    seen: set[str] = set()
+    while queue:
+        t = queue.pop(0)
+        if t in seen:
+            continue
+        seen.add(t)
+        tf = view.tables[t].filter
+        if tf:
+            tree, used = resolve_expr(view, tf, t)
+            _guard_reach(view, graph, home, used, f"table filter on '{t}'", metrics)
+            new = sorted(used - tables)
+            tables |= used
+            queue += new
+            conditions.append(tree)
+    return conditions
+
+
 # --------------------------------------------------------------------------- aggregates
 
 
@@ -207,21 +234,7 @@ def _aggregate(view, graph, home, metrics, dims, dim_filters, config):
 
     # always-on table filters apply to every involved table (and may pull in ancestors),
     # so a metric's population never depends on which dimensions were requested
-    queue = sorted(tables)
-    seen_filters: set[str] = set()
-    while queue:
-        t = queue.pop(0)
-        if t in seen_filters:
-            continue
-        seen_filters.add(t)
-        tf = view.tables[t].filter
-        if tf:
-            tree, used = resolve_expr(view, tf, t)
-            _guard_reach(view, graph, home, used, f"table filter on '{t}'", metrics)
-            new = sorted(used - tables)
-            tables |= used
-            queue += new
-            conditions.append(tree)
+    conditions += _expand_table_filters(view, graph, home, tables, metrics)
 
     # FinOps: partition requirements for every involved table
     preds_by_table = {t: partition_predicates(view, view.tables[t], dim_filters, config) for t in sorted(tables)}
@@ -392,12 +405,7 @@ def build_dimension_values_query(
         _guard_reach(view, graph, home, used, f"filter on '{d.name}'", [])
         tables |= used
         conditions.append(_condition(ftree, flt))
-    for t in sorted(tables):
-        tf = view.tables[t].filter
-        if tf:
-            ftree, used = resolve_expr(view, tf, t)
-            tables |= used
-            conditions.append(ftree)
+    conditions += _expand_table_filters(view, graph, home, tables, [])
     if search:
         needle = search.lower().replace("%", "").replace("_", " ")
         conditions.append(

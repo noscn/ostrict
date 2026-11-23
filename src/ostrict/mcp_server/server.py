@@ -146,7 +146,7 @@ def _caller_errors():
 
 def _jsonable(v: Any) -> Any:
     if isinstance(v, decimal.Decimal):
-        return float(v)
+        return str(v)  # exact — float() would round large NUMERIC/BIGNUMERIC values
     if isinstance(v, (dt.date, dt.datetime, dt.time)):
         return v.isoformat()
     if isinstance(v, bytes):
@@ -280,7 +280,12 @@ def execute_semantic_query(  # noqa: F811
     order_by: list[str] | None = None,
     limit: int | None = None,
 ) -> dict:
-    """Compile and run a metrics query; returns rows plus the executed SQL."""
+    """Compile and run a metrics query; returns rows plus the compiled SQL.
+
+    Exact numerics (DECIMAL/NUMERIC) come back as digit strings to preserve
+    precision. `truncated` is exact: the execution overfetches one row past
+    the LIMIT to see whether more data exists.
+    """
     from .. import compiler
 
     with _caller_errors():

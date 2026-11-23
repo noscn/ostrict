@@ -87,7 +87,8 @@ def test_mcp_server_stdio_end_to_end():
     assert out["values"] == ["store", "web"]
     assert out["compile"]["columns"] == ["revenue"] and "SELECT" in out["compile"]["sql"]
     rows = out["execute"]["rows"]
-    assert rows[0] == {"region": "EU", "revenue": 70.0, "order_count": 2}
+    # v0.5.1: exact numerics cross MCP as digit strings, never rounded floats
+    assert rows[0] == {"region": "EU", "revenue": "70.00", "order_count": 2}
     err, text = out["refusal"]
     assert err and "ERR_METRIC_REQUIRED" in text and "get_dimension_values" in text
     err, text = out["unknown_view"]
