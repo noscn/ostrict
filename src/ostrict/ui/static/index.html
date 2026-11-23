@@ -36,7 +36,13 @@ button:hover{border-color:var(--accent)}
 main{display:flex;flex:1;min-height:0}
 #sidebar{width:270px;flex:0 0 auto;background:var(--panel);border-right:1px solid var(--border);
   overflow-y:auto;padding:10px}
+#sidebar.hidden{display:none}
 #sidebar h3{margin:12px 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+details.acc{margin:12px 0 6px}
+details.acc summary{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);
+  cursor:pointer;user-select:none}
+details.acc summary:hover{color:var(--text)}
+details.acc summary .cnt{font-weight:400}
 .viewrow{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;cursor:pointer}
 .viewrow:hover{background:var(--panel2)} .viewrow.active{background:var(--chip);outline:1px solid var(--accent)}
 .viewrow .cnt{font-size:11px;color:var(--muted)}
@@ -48,6 +54,28 @@ label.toggle{display:flex;gap:8px;align-items:center;padding:3px 2px;cursor:poin
 .finding .rule{font-weight:700;margin-right:6px}
 .finding.error .rule{color:var(--error)} .finding.warn .rule{color:var(--warn)} .finding.policy .rule{color:var(--policy)}
 .broken{color:var(--error);font-size:12px;padding:6px 8px;background:var(--panel2);border-radius:6px;margin:6px 0}
+#searchwrap{position:relative;margin:2px 0 4px}
+#search{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);
+  border-radius:6px;padding:6px 8px;font:inherit}
+#search:focus{outline:none;border-color:var(--accent)}
+#searchres{position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--panel);
+  border:1px solid var(--border);border-radius:6px;max-height:300px;overflow-y:auto;display:none}
+#searchres.open{display:block}
+#searchres .hit{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;cursor:pointer;font-size:12px}
+#searchres .hit:hover,#searchres .hit.k{background:var(--chip)}
+#searchres .hit .kind{color:var(--muted);font-size:10.5px}
+#focuschip{position:absolute;top:10px;left:10px;z-index:10;display:none;max-width:min(560px,72%);
+  background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:7px 11px;font-size:12px}
+#focuschip.open{display:block}
+#focuschip .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#focuschip b{color:var(--accent)}
+#focuschip .expr{margin-top:6px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+  padding:6px 8px;white-space:pre-wrap;word-break:break-word}
+#focuschip .expr:empty,#focuschip .cmt:empty{display:none}
+#focuschip .cmt{margin-top:6px}
+#focuschip button{border:none;background:none;padding:0 2px;font-size:13px;color:var(--muted)}
+#focuschip button:hover{color:var(--text)}
+.node.focusseed rect.body{stroke:var(--accent);stroke-width:2}
 #canvaswrap{flex:1;position:relative;min-width:0;background:
   radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0/26px 26px}
 svg{width:100%;height:100%;display:block;cursor:grab}
@@ -59,12 +87,24 @@ svg.panning{cursor:grabbing}
 .node text.hdr{font-weight:700;fill:#fff}
 .node text.muted{fill:var(--muted);font-size:11px}
 .node{cursor:pointer}
-.edge path{fill:none;stroke:var(--edge);stroke-width:1.6;marker-end:url(#arrow)}
-.edge.error path{stroke:var(--error);stroke-dasharray:6 4;marker-end:url(#arrowErr)}
-.edge.selected path{stroke:var(--accent);stroke-width:2.4;marker-end:url(#arrowSel)}
-.edge text{fill:var(--muted);font-size:10.5px}
+g.node,g.edge{transition:opacity .12s}
 .edge{cursor:pointer}
+.edge path.hit{fill:none;stroke:transparent;stroke-width:14;pointer-events:stroke}
+.edge path.vis{fill:none;stroke:var(--edge);stroke-width:1.6;marker-end:url(#arrow)}
+.edge.hot path.vis{stroke-width:2.2}
+.edge.hot:not(.error) path.vis{stroke:var(--accent);marker-end:url(#arrowSel)}
+.edge:hover path.vis{stroke-width:2.6}
+.edge:not(.error):hover path.vis{stroke:var(--accent);marker-end:url(#arrowSel)}
+.edge.error path.vis{stroke:var(--error);stroke-dasharray:6 4;marker-end:url(#arrowErr)}
+.edge.selected path.vis{stroke:var(--accent);stroke-width:2.4;marker-end:url(#arrowSel)}
+.edge .lbl{display:none}
+.edge:hover .lbl,.edge.selected .lbl{display:inline}
+.edge .lbl rect{fill:var(--panel);stroke:var(--border);stroke-width:1}
+.edge .lbl text.lname{fill:var(--muted);font-size:10px}
+.edge .lbl text.lkey{fill:var(--text);font-size:11px;font-weight:600}
+g.edge:hover{opacity:1}
 .dim{opacity:.22}
+.fade{opacity:.18}
 #inspector{width:330px;flex:0 0 auto;background:var(--panel);border-left:1px solid var(--border);
   overflow-y:auto;padding:12px;display:none}
 #inspector.open{display:block}
@@ -89,16 +129,23 @@ svg.panning{cursor:grabbing}
 </head>
 <body>
 <header>
+  <button id="sbtoggle" title="Show / hide the sidebar">☰</button>
   <div class="brand">ostrict <span>studio</span></div>
   <div class="vname" id="vname">–</div>
   <div class="pill" id="lintpill">loading…</div>
   <div class="spacer"></div>
   <span class="note" id="livenote">live · polls 1.5s</span>
+  <button id="modebtn" title="Toggle compact / detailed table cards">Cards: –</button>
   <button id="fitbtn" title="Fit diagram to view">Fit</button>
   <button id="mcpbtn">Connect AI Agent</button>
 </header>
 <main>
   <nav id="sidebar">
+    <h3>Search</h3>
+    <div id="searchwrap">
+      <input id="search" type="text" placeholder="metric, dimension, table…  ( / )" autocomplete="off">
+      <div id="searchres"></div>
+    </div>
     <h3>Views</h3>
     <div id="viewlist"></div>
     <div id="brokenlist"></div>
@@ -107,12 +154,22 @@ svg.panning{cursor:grabbing}
     <label class="toggle"><input type="checkbox" id="t_dims" checked> Dimensions</label>
     <label class="toggle"><input type="checkbox" id="t_mets" checked> Metrics</label>
     <label class="toggle"><input type="checkbox" id="t_err"> Highlight errors only</label>
-    <h3>Derived metrics</h3>
-    <div id="derived" class="note">–</div>
-    <h3>View-level findings</h3>
-    <div id="vfindings" class="note">none</div>
+    <details class="acc" id="acc_derived" open>
+      <summary>Derived metrics <span class="cnt" id="dcnt"></span></summary>
+      <div id="derived" class="note">–</div>
+    </details>
+    <details class="acc" id="acc_findings" open>
+      <summary>View-level findings <span class="cnt" id="fcnt"></span></summary>
+      <div id="vfindings" class="note">none</div>
+    </details>
   </nav>
   <div id="canvaswrap">
+    <div id="focuschip">
+      <div class="row"><span>⦿ <b id="focuslabel"></b> <span class="note" id="focusmeta"></span></span>
+        <button id="focusx" title="Exit focus (Esc)">✕</button></div>
+      <div id="focusexpr" class="expr"></div>
+      <div id="focuscomment" class="cmt note"></div>
+    </div>
     <svg id="svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -138,29 +195,107 @@ svg.panning{cursor:grabbing}
 <script>
 "use strict";
 const S = {views: [], broken: [], current: null, payload: null, stamp: null,
-           pos: {}, sel: null, vb: {x: 0, y: 0, w: 1200, h: 800}};
+           pos: {}, sel: null, hover: null, mode: null, accFor: null, focus: null,
+           vb: {x: 0, y: 0, w: 1200, h: 800}};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const t = (s, n) => { s = String(s ?? ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+const h32 = s => { let h = 7; for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h); };
 const ROLE = {fact: "var(--fact)", dimension: "var(--dimension)", snapshot: "var(--snapshot)"};
 const NW = 260;
+const COMPACT_AT = 8; // views with this many tables or more start in compact cards
 
 async function j(url){ const r = await fetch(url); if(!r.ok) throw new Error(url + " -> " + r.status); return r.json(); }
 
 function filters(){ return {facts: $("t_facts").checked, dims: $("t_dims").checked,
                             mets: $("t_mets").checked, err: $("t_err").checked}; }
 
+function modeOf(){
+  if (S.mode) return S.mode;
+  if (!S.payload) return "detailed";
+  return visible().nodes.length >= COMPACT_AT ? "compact" : "detailed";
+}
+
+// Focus mode: show ONLY the lineage subgraph of the searched field's home
+// table(s) — everything else leaves the canvas entirely (not just faded).
+function visible(){
+  const p = S.payload;
+  if (!S.focus) return {nodes: p.nodes, edges: p.edges};
+  const keep = new Set();
+  for (const t of S.focus.tables) for (const x of lineage(t)) keep.add(x);
+  return {nodes: p.nodes.filter(n => keep.has(n.name)),
+          edges: p.edges.filter(e => keep.has(e.child) && keep.has(e.parent))};
+}
+
+function fieldIndex(){
+  const p = S.payload, ix = [];
+  if (!p) return ix;
+  const owner = {}; // field name -> owning tables
+  for (const n of p.nodes){
+    ix.push({label: n.name, kind: n.role + " table", tables: [n.name], fields: [], expr: null, comment: n.comment});
+    for (const [list, kind] of [[n.facts, "fact"], [n.dimensions, "dimension"], [n.metrics, "metric"]])
+      for (const x of list){
+        ix.push({label: x.name, kind: `${kind} · ${n.name}`, tables: [n.name], fields: [x.name],
+                 expr: x.expr, comment: x.comment});
+        (owner[x.name] = owner[x.name] || new Set()).add(n.name);
+      }
+  }
+  const derived = Object.fromEntries(p.derived_metrics.map(m => [m.name, m.expr]));
+  // a derived metric stands on the home tables of the base metrics it references, recursively
+  const resolve = (name, seen = new Set()) => {
+    const out = {tables: new Set(), fields: new Set()};
+    if (owner[name]){ for (const t of owner[name]) out.tables.add(t); out.fields.add(name); return out; }
+    if (!(name in derived) || seen.has(name)) return out;
+    seen.add(name);
+    for (const m of derived[name].matchAll(/[A-Za-z_][A-Za-z0-9_]*/g))
+      if (owner[m[0]] || m[0] in derived){
+        const r = resolve(m[0], seen);
+        r.tables.forEach(t => out.tables.add(t));
+        r.fields.forEach(x => out.fields.add(x));
+      }
+    return out;
+  };
+  for (const m of p.derived_metrics){
+    const r = resolve(m.name);
+    ix.push({label: m.name, kind: "derived metric", tables: [...r.tables], fields: [...r.fields],
+             expr: m.expr, comment: m.comment});
+  }
+  return ix;
+}
+
+function setFocus(f){
+  S.focus = f; S.hover = null;
+  S.sel = f && f.tables.length === 1 ? {type: "node", id: f.tables[0]} : null;
+  $("focuschip").className = f ? "open" : "";
+  if (f){
+    $("focusexpr").textContent = f.expr ? "= " + f.expr : "";
+    $("focuscomment").textContent = f.comment || "";
+  }
+  render(); fit();
+}
+
 function sections(n, f){
+  const hot = name => !!(S.focus && S.focus.fields && S.focus.fields.includes(name));
   const out = [];
-  if (f.facts && n.facts.length) out.push({label: "FACTS", items: n.facts.map(x => x.name)});
-  if (f.dims && n.dimensions.length) out.push({label: "DIMENSIONS",
-    items: n.dimensions.map(d => d.name + (d.is_time ? " ⏱" : ""))});
-  if (f.mets && n.metrics.length) out.push({label: "METRICS", items: n.metrics.map(m => "Σ " + m.name)});
-  for (const s of out) if (s.items.length > 6) s.items = s.items.slice(0, 6).concat(["+" + (s.items.length - 6) + " more"]);
+  if (f.facts && n.facts.length)
+    out.push({label: "FACTS", items: n.facts.map(x => ({t: x.name, hot: hot(x.name)}))});
+  if (f.dims && n.dimensions.length)
+    out.push({label: "DIMENSIONS", items: n.dimensions.map(d => ({t: d.name + (d.is_time ? " ⏱" : ""), hot: hot(d.name)}))});
+  if (f.mets && n.metrics.length)
+    out.push({label: "METRICS", items: n.metrics.map(m => ({t: "Σ " + m.name, hot: hot(m.name)}))});
+  for (const s of out) if (s.items.length > 6){
+    const vis = s.items.slice(0, 6);
+    for (const it of s.items.slice(6)) if (it.hot){ // keep the focused field's rows visible past the fold
+      const j = vis.map(v => v.hot).lastIndexOf(false);
+      if (j >= 0) vis[j] = it;
+    }
+    s.items = vis.concat([{t: "+" + (s.items.length - 6) + " more", hot: false}]);
+  }
   return out;
 }
 
 function nodeHeight(n, f){
+  if (modeOf() === "compact") return 56; // header + role/field-count line
   let h = 30 + 16; // header + source line
   if (n.role_playing || n.snapshot) h += 16;
   for (const s of sections(n, f)) h += 15 + s.items.length * 15;
@@ -168,61 +303,126 @@ function nodeHeight(n, f){
 }
 
 function layout(){
-  const p = S.payload, f = filters();
-  const lvl = {}; p.nodes.forEach(n => lvl[n.name] = 0);
-  for (let i = 0; i < p.nodes.length + 1; i++)
-    for (const e of p.edges)
+  const {nodes, edges} = visible(), f = filters();
+  const GAP = modeOf() === "compact" ? 18 : 28;
+  const lvl = {}; nodes.forEach(n => lvl[n.name] = 0);
+  for (let i = 0; i < nodes.length + 1; i++)
+    for (const e of edges)
       if (e.child in lvl && e.parent in lvl)
         lvl[e.parent] = Math.max(lvl[e.parent], lvl[e.child] + 1);
   const cols = {};
-  for (const n of p.nodes) (cols[lvl[n.name]] = cols[lvl[n.name]] || []).push(n);
-  const geo = {};
-  for (const [L, ns] of Object.entries(cols)){
-    ns.sort((a, b) => a.name.localeCompare(b.name));
-    let y = 40;
-    for (const n of ns){
-      const h = nodeHeight(n, f);
-      geo[n.name] = {x: 40 + L * 360, y, w: NW, h};
-      y += h + 28;
+  for (const n of nodes) (cols[lvl[n.name]] = cols[lvl[n.name]] || []).push(n);
+  const order = Object.keys(cols).map(Number).sort((a, b) => a - b);
+  const nbr = {}; nodes.forEach(n => nbr[n.name] = []);
+  for (const e of edges) if (e.child in nbr && e.parent in nbr){
+    nbr[e.child].push(e.parent); nbr[e.parent].push(e.child); }
+  const H = {}; for (const n of nodes) H[n.name] = nodeHeight(n, f);
+  const cy = {};
+  const stack = ns => { let y = 40; for (const n of ns){ cy[n.name] = y + H[n.name] / 2; y += H[n.name] + GAP; } };
+  for (const L of order){ cols[L].sort((a, b) => a.name.localeCompare(b.name)); stack(cols[L]); }
+  // Barycenter sweeps: reorder every column by the mean center of each node's
+  // neighbors, alternating sweep direction, so tables that share parents end up
+  // adjacent and edge crossings collapse. Ties break on name (deterministic).
+  for (let it = 0; it < 4; it++){
+    const seq = it % 2 ? [...order].reverse() : order;
+    for (const L of seq){
+      const ns = cols[L]; if (ns.length < 2) continue;
+      const b = new Map(ns.map(n => {
+        const xs = nbr[n.name];
+        return [n.name, xs.length ? xs.reduce((s, m) => s + cy[m], 0) / xs.length : cy[n.name]];
+      }));
+      ns.sort((x, y) => b.get(x.name) - b.get(y.name) || x.name.localeCompare(y.name));
+      stack(ns);
     }
+  }
+  const geo = {};
+  for (const L of order){
+    let y = 40;
+    for (const n of cols[L]){ geo[n.name] = {x: 40 + L * 360, y, w: NW, h: H[n.name]}; y += H[n.name] + GAP; }
   }
   for (const [name, o] of Object.entries(S.pos)) if (geo[name]) { geo[name].x = o.x; geo[name].y = o.y; }
   return geo;
 }
 
+// One attachment point per connection, fanned down the node's side in target
+// order, so parallel edges leave and land separated instead of as one bundle.
+function edgeAnchors(geo, E){
+  const outs = {}, ins = {};
+  E.forEach((e, i) => {
+    if (!geo[e.child] || !geo[e.parent]) return;
+    (outs[e.child] = outs[e.child] || []).push(i);
+    (ins[e.parent] = ins[e.parent] || []).push(i);
+  });
+  const a = E.map(() => ({y1: 15, y2: 15}));
+  const fan = (byNode, other, key) => {
+    for (const [name, idxs] of Object.entries(byNode)){
+      const g = geo[name];
+      idxs.sort((p, q) => {
+        const gp = geo[other(E[p])], gq = geo[other(E[q])];
+        return (gp.y + gp.h / 2) - (gq.y + gq.h / 2) || p - q;
+      });
+      const n = idxs.length, step = n > 1 ? Math.min(16, (g.h - 20) / (n - 1)) : 0;
+      const y0 = n === 1 ? Math.min(15, g.h / 2) : Math.max(12, g.h / 2 - (n - 1) * step / 2);
+      idxs.forEach((ei, k) => { a[ei][key] = y0 + k * step; });
+    }
+  };
+  fan(outs, e => e.parent, "y1");
+  fan(ins, e => e.child, "y2");
+  return a;
+}
+
 function render(){
   const p = S.payload; if (!p) return;
-  const f = filters(), geo = layout();
+  const f = filters(), {nodes, edges} = visible(), geo = layout(), anchors = edgeAnchors(geo, edges);
   let svg = "";
-  for (const e of p.edges){
+  edges.forEach((e, i) => {
     const c = geo[e.child], pa = geo[e.parent];
-    if (!c || !pa) continue;
-    const x1 = c.x + c.w, y1 = c.y + 15, x2 = pa.x, y2 = pa.y + 15;
+    if (!c || !pa) return;
+    const x1 = c.x + c.w, y1 = c.y + anchors[i].y1, x2 = pa.x, y2 = pa.y + anchors[i].y2;
+    // Horizontal cubic Bezier; the hash staggers control offsets per relationship
+    // so edges sharing a corridor separate instead of flattening into one band.
+    const dx = Math.max(46, Math.min(150, Math.abs(x2 - x1) * 0.45)) + (h32(e.name) % 4) * 8;
+    const d = `M ${x1},${y1} C ${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
     const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const l1 = t(e.name, 30);
+    const l2 = t(e.child_columns.join(", ") + " → " + e.parent_columns.join(", "), 36);
+    const lw = Math.max(l1.length, l2.length) * 6.4 + 16;
     const errCls = e.status === "error" ? " error" : "";
     const selCls = S.sel && S.sel.type === "edge" && S.sel.id === e.name ? " selected" : "";
     const dimCls = f.err && e.status !== "error" ? " dim" : "";
-    svg += `<g class="edge${errCls}${selCls}${dimCls}" data-edge="${esc(e.name)}">
-      <path d="M ${x1},${y1} C ${x1 + 70},${y1} ${x2 - 70},${y2} ${x2},${y2}"/>
-      <text x="${mx}" y="${my - 6}" text-anchor="middle">${esc(t(e.name, 26))}</text>
-      <text x="${mx}" y="${my + 8}" text-anchor="middle">${esc(t(e.child_columns + " → " + e.parent_columns, 30))}</text>
+    svg += `<g class="edge${errCls}${selCls}${dimCls}" data-edge="${esc(e.name)}" data-c="${esc(e.child)}" data-p="${esc(e.parent)}">
+      <path class="hit" d="${d}"/><path class="vis" d="${d}"/>
+      <g class="lbl"><rect x="${mx - lw / 2}" y="${my - 25}" width="${lw}" height="36" rx="5"/>
+        <text class="lname" x="${mx}" y="${my - 10}" text-anchor="middle">${esc(l1)}</text>
+        <text class="lkey" x="${mx}" y="${my + 5}" text-anchor="middle">${esc(l2)}</text></g>
     </g>`;
-  }
-  for (const n of p.nodes){
+  });
+  for (const n of nodes){
     const g = geo[n.name];
     const hasErr = n.findings.some(x => x.severity === "error");
     const cls = ["node", hasErr ? "errored" : "",
                  S.sel && S.sel.type === "node" && S.sel.id === n.name ? "selected" : "",
+                 S.focus && S.focus.tables.includes(n.name) ? "focusseed" : "",
                  f.err && !hasErr ? "dim" : ""].join(" ");
-    let rows = "", ry = 46;
-    rows += `<text class="muted" x="10" y="${ry}">${esc(t(n.source, 36))}</text>`; ry += 16;
-    if (n.role_playing || n.snapshot){
-      const b = [n.snapshot ? "SNAPSHOT" : "", n.role_playing ? "ROLE-PLAYING" : ""].filter(Boolean).join("  ·  ");
-      rows += `<text class="muted" x="10" y="${ry}" fill="var(--roleplay)">${esc(b)}</text>`; ry += 16;
-    }
-    for (const s of sections(n, f)){
-      rows += `<text class="muted" x="10" y="${ry}" style="letter-spacing:.8px;font-size:9.5px">${s.label}</text>`; ry += 15;
-      for (const it of s.items){ rows += `<text x="16" y="${ry}">${esc(t(it, 32))}</text>`; ry += 15; }
+    let rows = "";
+    if (modeOf() === "compact"){
+      const stats = [n.role.toUpperCase(), n.role_playing ? "ROLE-PLAY" : "",
+                     `${n.facts.length}F ${n.dimensions.length}D ${n.metrics.length}M`].filter(Boolean).join(" · ");
+      rows = `<text class="muted" x="10" y="46">${esc(t(stats, 34))}</text>`;
+    } else {
+      let ry = 46;
+      rows += `<text class="muted" x="10" y="${ry}">${esc(t(n.source, 36))}</text>`; ry += 16;
+      if (n.role_playing || n.snapshot){
+        const b = [n.snapshot ? "SNAPSHOT" : "", n.role_playing ? "ROLE-PLAYING" : ""].filter(Boolean).join("  ·  ");
+        rows += `<text class="muted" x="10" y="${ry}" fill="var(--roleplay)">${esc(b)}</text>`; ry += 16;
+      }
+      for (const s of sections(n, f)){
+        rows += `<text class="muted" x="10" y="${ry}" style="letter-spacing:.8px;font-size:9.5px">${s.label}</text>`; ry += 15;
+        for (const it of s.items){
+        rows += `<text x="16" y="${ry}"${it.hot ? ' style="fill:var(--accent);font-weight:700"' : ""}>${esc(t(it.t, 32))}</text>`;
+        ry += 15;
+      }
+      }
     }
     const errChip = n.findings.length
       ? `<text x="${g.w - 10}" y="20" text-anchor="end" fill="${hasErr ? "var(--error)" : "var(--warn)"}">⚑ ${n.findings.length}</text>` : "";
@@ -235,16 +435,60 @@ function render(){
   }
   $("scene").innerHTML = svg;
   applyViewBox();
+  applyFocus();
   $("vname").textContent = p.name + " · " + p.dialect;
   const s = p.summary;
   const pill = $("lintpill");
   pill.textContent = `${s.errors} errors · ${s.warnings} warnings` + (s.policies ? ` · ${s.policies} policy` : "");
   pill.className = "pill " + (s.errors ? "err" : "ok");
+  $("modebtn").textContent = "Cards: " + modeOf();
+  if (S.focus){
+    $("focuslabel").textContent = S.focus.label;
+    $("focusmeta").textContent = `${S.focus.kind} · ${nodes.length} of ${p.nodes.length} tables`;
+  }
+  $("dcnt").textContent = `(${p.derived_metrics.length})`;
+  $("fcnt").textContent = `(${p.findings.length})`;
+  if (S.accFor !== p.name){ // auto-collapse long sections once per view; then the user's choice sticks
+    S.accFor = p.name;
+    $("acc_derived").open = p.derived_metrics.length <= 5;
+    $("acc_findings").open = p.findings.length <= 5;
+  }
   $("derived").innerHTML = p.derived_metrics.length
     ? p.derived_metrics.map(m => `<div class="fieldrow">ƒ ${esc(m.name)} <span class="ex">= ${esc(m.expr)}</span></div>`).join("")
     : "none";
   $("vfindings").innerHTML = p.findings.length ? p.findings.map(fin => findingHTML(fin)).join("") : "none";
   renderInspector();
+}
+
+// ---- lineage focus ----------------------------------------------------------
+function lineage(name){
+  const up = {}, down = {};
+  for (const e of S.payload.edges){
+    (up[e.child] = up[e.child] || []).push(e.parent);
+    (down[e.parent] = down[e.parent] || []).push(e.child);
+  }
+  const rel = new Set([name]);
+  const walk = dir => {
+    const q = [name], seen = new Set([name]);
+    while (q.length){
+      const cur = q.pop();
+      for (const nxt of dir[cur] || []) if (!seen.has(nxt)){ seen.add(nxt); rel.add(nxt); q.push(nxt); }
+    }
+  };
+  walk(up); walk(down); // ancestors ∪ descendants ∪ self — never cousins
+  return rel;
+}
+
+function applyFocus(){
+  const name = S.hover || (S.sel && S.sel.type === "node" ? S.sel.id : null);
+  const rel = name && S.payload ? lineage(name) : null;
+  for (const el of $("scene").querySelectorAll("[data-node]"))
+    el.classList.toggle("fade", !!rel && !rel.has(el.dataset.node));
+  for (const el of $("scene").querySelectorAll("[data-edge]")){
+    const on = !!rel && rel.has(el.dataset.c) && rel.has(el.dataset.p);
+    el.classList.toggle("fade", !!rel && !on);
+    el.classList.toggle("hot", on);
+  }
 }
 
 function findingHTML(f){
@@ -316,7 +560,9 @@ function fit(){
   let x1 = 1e9, y1 = 1e9, x2 = -1e9, y2 = -1e9;
   for (const n of names){ const o = g[n];
     x1 = Math.min(x1, o.x); y1 = Math.min(y1, o.y); x2 = Math.max(x2, o.x + o.w); y2 = Math.max(y2, o.y + o.h); }
-  const pad = 60, el = $("svg"), ar = el.clientWidth / Math.max(1, el.clientHeight);
+  const pad = 60, el = $("svg");
+  // a hidden or not-yet-laid-out pane reports 0×0; a zero ratio would blow h up to Infinity
+  const ar = el.clientWidth && el.clientHeight ? el.clientWidth / el.clientHeight : 1.5;
   let w = x2 - x1 + pad * 2, h = y2 - y1 + pad * 2;
   if (w / h < ar) w = h * ar; else h = w / ar;
   S.vb = {x: x1 - pad, y: y1 - pad, w, h};
@@ -325,7 +571,10 @@ function fit(){
 
 async function selectView(name, keep){
   S.current = name;
-  if (!keep){ S.pos = {}; S.sel = null; }
+  if (!keep){
+    S.pos = {}; S.sel = null; S.mode = null; S.hover = null; S.focus = null;
+    $("search").value = ""; $("searchres").className = ""; $("focuschip").className = "";
+  }
   S.payload = await j("/api/views/" + encodeURIComponent(name));
   renderViewList(); render();
   if (!keep) fit();
@@ -393,6 +642,15 @@ svg.addEventListener("pointerup", () => {
   }
   drag = null;
 });
+svg.addEventListener("pointerover", ev => {
+  if (drag) return;
+  const el = ev.target.closest("[data-node]");
+  const name = el ? el.dataset.node : null;
+  if (name !== S.hover){ S.hover = name; applyFocus(); }
+});
+svg.addEventListener("pointerleave", () => {
+  if (S.hover){ S.hover = null; applyFocus(); }
+});
 svg.addEventListener("wheel", ev => {
   ev.preventDefault();
   const w = toWorld(ev), k = ev.deltaY > 0 ? 1.12 : 1 / 1.12;
@@ -406,6 +664,44 @@ $("viewlist").addEventListener("click", ev => {
 });
 for (const id of ["t_facts", "t_dims", "t_mets", "t_err"]) $(id).addEventListener("change", render);
 $("fitbtn").addEventListener("click", fit);
+$("modebtn").addEventListener("click", () => {
+  S.mode = modeOf() === "compact" ? "detailed" : "compact";
+  render(); fit();
+});
+$("sbtoggle").addEventListener("click", () => $("sidebar").classList.toggle("hidden"));
+
+// ---- field search -> focused lineage subgraph --------------------------------
+let hits = [];
+function pickHit(i){
+  const e = hits[i];
+  if (!e || !e.tables.length) return;
+  $("searchres").className = ""; $("search").value = e.label; $("search").blur();
+  setFocus({label: e.label, kind: e.kind, tables: e.tables, fields: e.fields || [],
+            expr: e.expr || null, comment: e.comment || null});
+}
+$("search").addEventListener("input", () => {
+  const q = $("search").value.trim().toLowerCase(), res = $("searchres");
+  if (!q){ res.className = ""; res.innerHTML = ""; hits = []; return; }
+  hits = fieldIndex().filter(e => e.label.toLowerCase().includes(q)).slice(0, 12);
+  res.innerHTML = hits.map((e, i) => `<div class="hit${i ? "" : " k"}" data-hit="${i}">
+    <span>${esc(e.label)}</span><span class="kind">${esc(e.kind)}</span></div>`).join("")
+    || `<div class="hit"><span class="kind">no matches</span></div>`;
+  res.className = "open";
+});
+$("search").addEventListener("keydown", ev => {
+  if (ev.key === "Enter" && hits.length) pickHit(0);
+  else if (ev.key === "Escape"){ $("search").value = ""; $("searchres").className = ""; hits = []; $("search").blur(); }
+});
+$("searchres").addEventListener("pointerdown", ev => {
+  const el = ev.target.closest("[data-hit]");
+  if (el) pickHit(+el.dataset.hit);
+});
+$("focusx").addEventListener("click", () => { $("search").value = ""; setFocus(null); });
+document.addEventListener("keydown", ev => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (ev.key === "/" && !typing){ ev.preventDefault(); $("sidebar").classList.remove("hidden"); $("search").focus(); }
+  else if (ev.key === "Escape" && S.focus && !typing){ $("search").value = ""; setFocus(null); }
+});
 
 // ---- MCP modal --------------------------------------------------------------
 $("mcpbtn").addEventListener("click", async () => {
