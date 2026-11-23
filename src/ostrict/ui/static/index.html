@@ -54,6 +54,23 @@ label.toggle{display:flex;gap:8px;align-items:center;padding:3px 2px;cursor:poin
 .finding .rule{font-weight:700;margin-right:6px}
 .finding.error .rule{color:var(--error)} .finding.warn .rule{color:var(--warn)} .finding.policy .rule{color:var(--policy)}
 .broken{color:var(--error);font-size:12px;padding:6px 8px;background:var(--panel2);border-radius:6px;margin:6px 0}
+#searchwrap{position:relative;margin:2px 0 4px}
+#search{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);
+  border-radius:6px;padding:6px 8px;font:inherit}
+#search:focus{outline:none;border-color:var(--accent)}
+#searchres{position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--panel);
+  border:1px solid var(--border);border-radius:6px;max-height:300px;overflow-y:auto;display:none}
+#searchres.open{display:block}
+#searchres .hit{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;cursor:pointer;font-size:12px}
+#searchres .hit:hover,#searchres .hit.k{background:var(--chip)}
+#searchres .hit .kind{color:var(--muted);font-size:10.5px}
+#focuschip{position:absolute;top:10px;left:10px;z-index:10;display:none;align-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--accent);border-radius:999px;padding:4px 10px;font-size:12px}
+#focuschip.open{display:flex}
+#focuschip b{color:var(--accent)}
+#focuschip button{border:none;background:none;padding:0 2px;font-size:13px;color:var(--muted)}
+#focuschip button:hover{color:var(--text)}
+.node.focusseed rect.body{stroke:var(--accent);stroke-width:2}
 #canvaswrap{flex:1;position:relative;min-width:0;background:
   radial-gradient(circle at 1px 1px, var(--border) 1px, transparent 0) 0 0/26px 26px}
 svg{width:100%;height:100%;display:block;cursor:grab}
@@ -119,6 +136,11 @@ g.edge:hover{opacity:1}
 </header>
 <main>
   <nav id="sidebar">
+    <h3>Search</h3>
+    <div id="searchwrap">
+      <input id="search" type="text" placeholder="metric, dimension, table…  ( / )" autocomplete="off">
+      <div id="searchres"></div>
+    </div>
     <h3>Views</h3>
     <div id="viewlist"></div>
     <div id="brokenlist"></div>
@@ -137,6 +159,8 @@ g.edge:hover{opacity:1}
     </details>
   </nav>
   <div id="canvaswrap">
+    <div id="focuschip"><span>⦿ <b id="focuslabel"></b> <span class="note" id="focusmeta"></span></span>
+      <button id="focusx" title="Exit focus (Esc)">✕</button></div>
     <svg id="svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -162,7 +186,7 @@ g.edge:hover{opacity:1}
 <script>
 "use strict";
 const S = {views: [], broken: [], current: null, payload: null, stamp: null,
-           pos: {}, sel: null, hover: null, mode: null, accFor: null,
+           pos: {}, sel: null, hover: null, mode: null, accFor: null, focus: null,
            vb: {x: 0, y: 0, w: 1200, h: 800}};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -179,7 +203,53 @@ function filters(){ return {facts: $("t_facts").checked, dims: $("t_dims").check
 
 function modeOf(){
   if (S.mode) return S.mode;
-  return S.payload && S.payload.nodes.length >= COMPACT_AT ? "compact" : "detailed";
+  if (!S.payload) return "detailed";
+  return visible().nodes.length >= COMPACT_AT ? "compact" : "detailed";
+}
+
+// Focus mode: show ONLY the lineage subgraph of the searched field's home
+// table(s) — everything else leaves the canvas entirely (not just faded).
+function visible(){
+  const p = S.payload;
+  if (!S.focus) return {nodes: p.nodes, edges: p.edges};
+  const keep = new Set();
+  for (const t of S.focus.tables) for (const x of lineage(t)) keep.add(x);
+  return {nodes: p.nodes.filter(n => keep.has(n.name)),
+          edges: p.edges.filter(e => keep.has(e.child) && keep.has(e.parent))};
+}
+
+function fieldIndex(){
+  const p = S.payload, ix = [];
+  if (!p) return ix;
+  const owner = {}; // field name -> owning tables
+  for (const n of p.nodes){
+    ix.push({label: n.name, kind: n.role + " table", tables: [n.name]});
+    for (const [list, kind] of [[n.facts, "fact"], [n.dimensions, "dimension"], [n.metrics, "metric"]])
+      for (const x of list){
+        ix.push({label: x.name, kind: `${kind} · ${n.name}`, tables: [n.name]});
+        (owner[x.name] = owner[x.name] || new Set()).add(n.name);
+      }
+  }
+  const derived = Object.fromEntries(p.derived_metrics.map(m => [m.name, m.expr]));
+  const homes = (name, seen = new Set()) => { // tables a possibly-derived metric stands on
+    if (owner[name]) return [...owner[name]];
+    if (!(name in derived) || seen.has(name)) return [];
+    seen.add(name);
+    const out = new Set();
+    for (const m of derived[name].matchAll(/[A-Za-z_][A-Za-z0-9_]*/g))
+      for (const t of (owner[m[0]] ? [...owner[m[0]]] : homes(m[0], seen))) out.add(t);
+    return [...out];
+  };
+  for (const m of p.derived_metrics)
+    ix.push({label: m.name, kind: "derived metric", tables: homes(m.name)});
+  return ix;
+}
+
+function setFocus(f){
+  S.focus = f; S.hover = null;
+  S.sel = f && f.tables.length === 1 ? {type: "node", id: f.tables[0]} : null;
+  $("focuschip").className = f ? "open" : "";
+  render(); fit();
 }
 
 function sections(n, f){
@@ -201,20 +271,20 @@ function nodeHeight(n, f){
 }
 
 function layout(){
-  const p = S.payload, f = filters();
+  const {nodes, edges} = visible(), f = filters();
   const GAP = modeOf() === "compact" ? 18 : 28;
-  const lvl = {}; p.nodes.forEach(n => lvl[n.name] = 0);
-  for (let i = 0; i < p.nodes.length + 1; i++)
-    for (const e of p.edges)
+  const lvl = {}; nodes.forEach(n => lvl[n.name] = 0);
+  for (let i = 0; i < nodes.length + 1; i++)
+    for (const e of edges)
       if (e.child in lvl && e.parent in lvl)
         lvl[e.parent] = Math.max(lvl[e.parent], lvl[e.child] + 1);
   const cols = {};
-  for (const n of p.nodes) (cols[lvl[n.name]] = cols[lvl[n.name]] || []).push(n);
+  for (const n of nodes) (cols[lvl[n.name]] = cols[lvl[n.name]] || []).push(n);
   const order = Object.keys(cols).map(Number).sort((a, b) => a - b);
-  const nbr = {}; p.nodes.forEach(n => nbr[n.name] = []);
-  for (const e of p.edges) if (e.child in nbr && e.parent in nbr){
+  const nbr = {}; nodes.forEach(n => nbr[n.name] = []);
+  for (const e of edges) if (e.child in nbr && e.parent in nbr){
     nbr[e.child].push(e.parent); nbr[e.parent].push(e.child); }
-  const H = {}; for (const n of p.nodes) H[n.name] = nodeHeight(n, f);
+  const H = {}; for (const n of nodes) H[n.name] = nodeHeight(n, f);
   const cy = {};
   const stack = ns => { let y = 40; for (const n of ns){ cy[n.name] = y + H[n.name] / 2; y += H[n.name] + GAP; } };
   for (const L of order){ cols[L].sort((a, b) => a.name.localeCompare(b.name)); stack(cols[L]); }
@@ -244,8 +314,7 @@ function layout(){
 
 // One attachment point per connection, fanned down the node's side in target
 // order, so parallel edges leave and land separated instead of as one bundle.
-function edgeAnchors(geo){
-  const E = S.payload.edges;
+function edgeAnchors(geo, E){
   const outs = {}, ins = {};
   E.forEach((e, i) => {
     if (!geo[e.child] || !geo[e.parent]) return;
@@ -272,9 +341,9 @@ function edgeAnchors(geo){
 
 function render(){
   const p = S.payload; if (!p) return;
-  const f = filters(), geo = layout(), anchors = edgeAnchors(geo);
+  const f = filters(), {nodes, edges} = visible(), geo = layout(), anchors = edgeAnchors(geo, edges);
   let svg = "";
-  p.edges.forEach((e, i) => {
+  edges.forEach((e, i) => {
     const c = geo[e.child], pa = geo[e.parent];
     if (!c || !pa) return;
     const x1 = c.x + c.w, y1 = c.y + anchors[i].y1, x2 = pa.x, y2 = pa.y + anchors[i].y2;
@@ -296,11 +365,12 @@ function render(){
         <text class="lkey" x="${mx}" y="${my + 5}" text-anchor="middle">${esc(l2)}</text></g>
     </g>`;
   });
-  for (const n of p.nodes){
+  for (const n of nodes){
     const g = geo[n.name];
     const hasErr = n.findings.some(x => x.severity === "error");
     const cls = ["node", hasErr ? "errored" : "",
                  S.sel && S.sel.type === "node" && S.sel.id === n.name ? "selected" : "",
+                 S.focus && S.focus.tables.includes(n.name) ? "focusseed" : "",
                  f.err && !hasErr ? "dim" : ""].join(" ");
     let rows = "";
     if (modeOf() === "compact"){
@@ -337,6 +407,10 @@ function render(){
   pill.textContent = `${s.errors} errors · ${s.warnings} warnings` + (s.policies ? ` · ${s.policies} policy` : "");
   pill.className = "pill " + (s.errors ? "err" : "ok");
   $("modebtn").textContent = "Cards: " + modeOf();
+  if (S.focus){
+    $("focuslabel").textContent = S.focus.label;
+    $("focusmeta").textContent = `${S.focus.kind} · ${nodes.length} of ${p.nodes.length} tables`;
+  }
   $("dcnt").textContent = `(${p.derived_metrics.length})`;
   $("fcnt").textContent = `(${p.findings.length})`;
   if (S.accFor !== p.name){ // auto-collapse long sections once per view; then the user's choice sticks
@@ -462,7 +536,10 @@ function fit(){
 
 async function selectView(name, keep){
   S.current = name;
-  if (!keep){ S.pos = {}; S.sel = null; S.mode = null; S.hover = null; }
+  if (!keep){
+    S.pos = {}; S.sel = null; S.mode = null; S.hover = null; S.focus = null;
+    $("search").value = ""; $("searchres").className = ""; $("focuschip").className = "";
+  }
   S.payload = await j("/api/views/" + encodeURIComponent(name));
   renderViewList(); render();
   if (!keep) fit();
@@ -557,6 +634,38 @@ $("modebtn").addEventListener("click", () => {
   render(); fit();
 });
 $("sbtoggle").addEventListener("click", () => $("sidebar").classList.toggle("hidden"));
+
+// ---- field search -> focused lineage subgraph --------------------------------
+let hits = [];
+function pickHit(i){
+  const e = hits[i];
+  if (!e || !e.tables.length) return;
+  $("searchres").className = ""; $("search").value = e.label; $("search").blur();
+  setFocus({label: e.label, kind: e.kind, tables: e.tables});
+}
+$("search").addEventListener("input", () => {
+  const q = $("search").value.trim().toLowerCase(), res = $("searchres");
+  if (!q){ res.className = ""; res.innerHTML = ""; hits = []; return; }
+  hits = fieldIndex().filter(e => e.label.toLowerCase().includes(q)).slice(0, 12);
+  res.innerHTML = hits.map((e, i) => `<div class="hit${i ? "" : " k"}" data-hit="${i}">
+    <span>${esc(e.label)}</span><span class="kind">${esc(e.kind)}</span></div>`).join("")
+    || `<div class="hit"><span class="kind">no matches</span></div>`;
+  res.className = "open";
+});
+$("search").addEventListener("keydown", ev => {
+  if (ev.key === "Enter" && hits.length) pickHit(0);
+  else if (ev.key === "Escape"){ $("search").value = ""; $("searchres").className = ""; hits = []; $("search").blur(); }
+});
+$("searchres").addEventListener("pointerdown", ev => {
+  const el = ev.target.closest("[data-hit]");
+  if (el) pickHit(+el.dataset.hit);
+});
+$("focusx").addEventListener("click", () => { $("search").value = ""; setFocus(null); });
+document.addEventListener("keydown", ev => {
+  const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
+  if (ev.key === "/" && !typing){ ev.preventDefault(); $("search").focus(); }
+  else if (ev.key === "Escape" && S.focus && !typing){ $("search").value = ""; setFocus(null); }
+});
 
 // ---- MCP modal --------------------------------------------------------------
 $("mcpbtn").addEventListener("click", async () => {

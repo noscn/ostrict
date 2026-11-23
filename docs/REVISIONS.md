@@ -264,5 +264,10 @@ column types shaped these fixes:
     toggle back to the detailed field lists. The sidebar's derived-metrics and
     view-level-findings sections are collapsible accordions that auto-collapse
     past 5 items, and the sidebar itself toggles away for a full-canvas
-    diagram. Still one self-contained HTML file: no external libraries, same
-    endpoints, same 1.5 s hot-reload poll.
+    diagram. A sidebar search (`/`) finds any table, fact, dimension or metric
+    — a derived metric resolves recursively to the home tables of the base
+    metrics it references — and focuses the canvas on just that field's
+    lineage subgraph, colibri-style: unrelated tables leave the layout
+    entirely, the subgraph is relaid out and refitted, and a dismissible chip
+    (or Esc) restores the full view. Still one self-contained HTML file: no
+    external libraries, same endpoints, same 1.5 s hot-reload poll.
