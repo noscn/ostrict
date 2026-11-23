@@ -215,3 +215,23 @@ column types shaped these fixes:
     memoization lives outside the plugin instance, so `__slots__` plugins
     work (F7); and `max_rows=0` now means zero rows, with negative values
     refused (F8).
+
+# v0.5.2 — re-audit fixes (F9, F10)
+
+29. **Fixes hold up under their own audit.** The re-audit of v0.5.1 confirmed
+    all eight fixes and caught two subtleties the fixes themselves introduced.
+    F9: the scaffold's PK heuristic ran on the renamed logical name, so a
+    cross-schema `s1_orders` hunted for `s1_order_id` and fell back to the
+    first column — it now always sees the physical table name, and when a
+    foreign key matches confident parents in several schemas, the child's own
+    schema wins instead of dropping the relationship as ambiguous (a lone
+    cross-schema match still links). F10: the memo for plugins that cannot be
+    weakly referenced was id-keyed forever — a recycled `id()` could hand a
+    new plugin an old memo and silently skip its `on_model_loaded`. It is now
+    a small LRU (64) that holds the instance strongly, which makes id reuse
+    impossible while an entry lives and caps the cost; an evicted plugin just
+    gets the callback again. Also hardened, from the re-audit's margin note:
+    when an `after_compile` plugin rewrites the SQL so no LIMIT is left, the
+    executed query is now capped at the connector (`max_rows`) with the
+    request's own limit and `truncated` stays exact, instead of fetching
+    unbounded rows and guessing.

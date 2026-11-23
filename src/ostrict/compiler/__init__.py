@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import weakref
+from collections import OrderedDict
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
@@ -27,11 +28,15 @@ def _ensure_valid(view, lint_config):
 
 
 # on_model_loaded memos live OUTSIDE the plugin: a plugin may use __slots__ and
-# have no __dict__ to write into. Weak keys let a dropped plugin free its memo;
-# a plugin that cannot be weakly referenced (or hashed) falls back to an
-# id-keyed entry that lives for the process.
+# have no __dict__ to write into. Weak keys let a dropped plugin free its memo.
+# A plugin that cannot be weakly referenced (or hashed) goes into a small LRU
+# that holds the INSTANCE strongly: the strong reference makes id() reuse
+# impossible while the entry lives (a dead object's id could otherwise be
+# recycled onto a new plugin, silently skipping its on_model_loaded), and the
+# bound caps the cost. An evicted plugin just gets on_model_loaded again.
+MAX_UNWEAKABLE_PLUGIN_CACHE = 64
 _MODELS_SEEN: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
-_MODELS_SEEN_BY_ID: dict[int, dict[int, weakref.ref]] = {}
+_MODELS_SEEN_BY_ID: OrderedDict[int, tuple[CompilerPlugin, dict[int, weakref.ref]]] = OrderedDict()
 
 
 def _plugin_memo(p: CompilerPlugin) -> dict[int, weakref.ref]:
@@ -41,7 +46,13 @@ def _plugin_memo(p: CompilerPlugin) -> dict[int, weakref.ref]:
             memo = _MODELS_SEEN[p] = {}
         return memo
     except TypeError:  # __slots__ without __weakref__, or an unhashable plugin
-        return _MODELS_SEEN_BY_ID.setdefault(id(p), {})
+        entry = _MODELS_SEEN_BY_ID.get(id(p))
+        if entry is None or entry[0] is not p:
+            entry = _MODELS_SEEN_BY_ID[id(p)] = (p, {})
+        _MODELS_SEEN_BY_ID.move_to_end(id(p))
+        while len(_MODELS_SEEN_BY_ID) > MAX_UNWEAKABLE_PLUGIN_CACHE:
+            _MODELS_SEEN_BY_ID.popitem(last=False)
+        return entry[1]
 
 
 def _notify_model_loaded(view: SemanticView, plugins: Iterable[CompilerPlugin]) -> None:
@@ -131,10 +142,8 @@ def execute_semantic_query(
     compiled = compile_semantic_query(
         view, request, dialect=connector.dialect, plugins=plugins, config=config, lint_config=lint_config
     )
-    rows, truncated = _execute_probing_limit(connector, compiled)
-    if truncated is None:  # no recognizable LIMIT (a plugin rewrote the statement)
-        cfg = config or CompileConfig()
-        truncated = len(rows) >= (request.limit or cfg.default_limit)
+    cfg = config or CompileConfig()
+    rows, truncated = _execute_probing_limit(connector, compiled, request.limit or cfg.default_limit)
     result = QueryResult(
         columns=compiled.columns,
         rows=rows,
@@ -146,13 +155,20 @@ def execute_semantic_query(
     return result
 
 
-def _execute_probing_limit(connector, compiled: CompiledQuery) -> tuple[list[dict], bool | None]:
+def _execute_probing_limit(
+    connector, compiled: CompiledQuery, fallback_limit: int
+) -> tuple[list[dict], bool]:
     """Run the compiled query overfetching ONE row past its LIMIT, so ``truncated``
     reports a fact — row N+1 exists — instead of guessing from len(rows) == N.
 
     The reported/auditable SQL stays ``compiled.sql`` (what explain shows for the
     same request); only the executed statement's LIMIT literal is raised by one,
-    and the extra row is dropped before anyone sees it."""
+    and the extra row is dropped before anyone sees it.
+
+    If an ``after_compile`` plugin rewrote the statement past recognition (no
+    top-level numeric LIMIT), the request's own limit is enforced at the
+    connector instead (``max_rows``), so the result stays bounded and the flag
+    stays exact even then."""
     n: int | None = None
     try:
         tree = sqlglot.parse_one(compiled.sql, read=connector.dialect or None)
@@ -166,7 +182,8 @@ def _execute_probing_limit(connector, compiled: CompiledQuery) -> tuple[list[dic
     except Exception:
         n = None
     if n is None:
-        return connector.execute(compiled.sql), None
+        rows = connector.execute(compiled.sql, max_rows=fallback_limit + 1)
+        return rows[:fallback_limit], len(rows) > fallback_limit
     lim.set("expression", exp.Literal.number(n + 1))
     rows = connector.execute(tree.sql(dialect=connector.dialect or None, pretty=True), max_rows=n + 1)
     return rows[:n], len(rows) > n
