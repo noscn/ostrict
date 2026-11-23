@@ -247,3 +247,22 @@ column types shaped these fixes:
     active. All three public entry points now materialize `plugins` once up
     front (`execute_semantic_query` already did), with generator regression
     tests for each.
+
+# v0.5.4 — studio readability on large views
+
+31. **A 20-table view must read as a diagram, not as spaghetti.** The studio's
+    layered layout now runs barycenter ordering sweeps (each column reordered
+    by the mean position of its neighbors, alternating direction), so tables
+    that share parents sit together and edge crossings collapse. Edges attach
+    through per-connection anchor fans and staggered horizontal cubic Beziers
+    instead of one shared point, so parallel joins separate instead of
+    flattening into a band; join labels moved off the canvas and into a
+    hover/selection tooltip (`fk → pk` on a readable background). Hovering or
+    selecting a table dims everything outside its ancestor/descendant lineage
+    to 0.18 opacity. Cards gained a compact mode (header, role, finding flag,
+    field counts) that turns on automatically at 8+ tables, with a header
+    toggle back to the detailed field lists. The sidebar's derived-metrics and
+    view-level-findings sections are collapsible accordions that auto-collapse
+    past 5 items, and the sidebar itself toggles away for a full-canvas
+    diagram. Still one self-contained HTML file: no external libraries, same
+    endpoints, same 1.5 s hot-reload poll.

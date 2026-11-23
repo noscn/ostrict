@@ -166,6 +166,18 @@ def test_app_accepts_config_file_and_single_file(tmp_path):
     assert [v["name"] for v in via_file["views"]] == ["ecommerce"]
 
 
+def test_page_ships_v054_studio_affordances(tmp_path):
+    """v0.5.4: the served page carries the large-view affordances (compact cards,
+    sidebar toggle, collapsible sections) and stays a single self-contained file."""
+    views = tmp_path / "views"
+    views.mkdir()
+    shutil.copy(FIXTURES / "ecommerce.yaml", views / "ecommerce.yaml")
+    page = TestClient(create_app(views)).get("/").text
+    for marker in ('id="modebtn"', 'id="sbtoggle"', '<details class="acc"', "COMPACT_AT"):
+        assert marker in page
+    assert "<script src=" not in page and "https://" not in page  # no external libraries or CDNs
+
+
 def test_cli_help_and_missing_extras(monkeypatch, capsys):
     with pytest.raises(SystemExit) as e:
         cli_main(["ui", "--help"])
