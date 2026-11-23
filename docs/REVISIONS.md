@@ -268,6 +268,9 @@ column types shaped these fixes:
     — a derived metric resolves recursively to the home tables of the base
     metrics it references — and focuses the canvas on just that field's
     lineage subgraph, colibri-style: unrelated tables leave the layout
-    entirely, the subgraph is relaid out and refitted, and a dismissible chip
-    (or Esc) restores the full view. Still one self-contained HTML file: no
+    entirely, the subgraph is relaid out and refitted, the focus chip shows
+    the field's definition (its expression and doc comment) with the
+    referenced base fields highlighted inside their table cards — kept
+    visible even past the "+N more" fold — and the chip's ✕ (or Esc)
+    restores the full view. Still one self-contained HTML file: no
     external libraries, same endpoints, same 1.5 s hot-reload poll.

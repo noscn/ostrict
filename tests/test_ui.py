@@ -173,7 +173,7 @@ def test_page_ships_v054_studio_affordances(tmp_path):
     views.mkdir()
     shutil.copy(FIXTURES / "ecommerce.yaml", views / "ecommerce.yaml")
     page = TestClient(create_app(views)).get("/").text
-    for marker in ('id="modebtn"', 'id="sbtoggle"', 'id="search"', 'id="focuschip"',
+    for marker in ('id="modebtn"', 'id="sbtoggle"', 'id="search"', 'id="focuschip"', 'id="focusexpr"',
                    '<details class="acc"', "COMPACT_AT"):
         assert marker in page
     assert "<script src=" not in page and "https://" not in page  # no external libraries or CDNs

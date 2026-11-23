@@ -64,10 +64,15 @@ label.toggle{display:flex;gap:8px;align-items:center;padding:3px 2px;cursor:poin
 #searchres .hit{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;cursor:pointer;font-size:12px}
 #searchres .hit:hover,#searchres .hit.k{background:var(--chip)}
 #searchres .hit .kind{color:var(--muted);font-size:10.5px}
-#focuschip{position:absolute;top:10px;left:10px;z-index:10;display:none;align-items:center;gap:8px;
-  background:var(--panel);border:1px solid var(--accent);border-radius:999px;padding:4px 10px;font-size:12px}
-#focuschip.open{display:flex}
+#focuschip{position:absolute;top:10px;left:10px;z-index:10;display:none;max-width:min(560px,72%);
+  background:var(--panel);border:1px solid var(--accent);border-radius:10px;padding:7px 11px;font-size:12px}
+#focuschip.open{display:block}
+#focuschip .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 #focuschip b{color:var(--accent)}
+#focuschip .expr{margin-top:6px;background:var(--panel2);border:1px solid var(--border);border-radius:6px;
+  padding:6px 8px;white-space:pre-wrap;word-break:break-word}
+#focuschip .expr:empty,#focuschip .cmt:empty{display:none}
+#focuschip .cmt{margin-top:6px}
 #focuschip button{border:none;background:none;padding:0 2px;font-size:13px;color:var(--muted)}
 #focuschip button:hover{color:var(--text)}
 .node.focusseed rect.body{stroke:var(--accent);stroke-width:2}
@@ -159,8 +164,12 @@ g.edge:hover{opacity:1}
     </details>
   </nav>
   <div id="canvaswrap">
-    <div id="focuschip"><span>⦿ <b id="focuslabel"></b> <span class="note" id="focusmeta"></span></span>
-      <button id="focusx" title="Exit focus (Esc)">✕</button></div>
+    <div id="focuschip">
+      <div class="row"><span>⦿ <b id="focuslabel"></b> <span class="note" id="focusmeta"></span></span>
+        <button id="focusx" title="Exit focus (Esc)">✕</button></div>
+      <div id="focusexpr" class="expr"></div>
+      <div id="focuscomment" class="cmt note"></div>
+    </div>
     <svg id="svg" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -223,25 +232,34 @@ function fieldIndex(){
   if (!p) return ix;
   const owner = {}; // field name -> owning tables
   for (const n of p.nodes){
-    ix.push({label: n.name, kind: n.role + " table", tables: [n.name]});
+    ix.push({label: n.name, kind: n.role + " table", tables: [n.name], fields: [], expr: null, comment: n.comment});
     for (const [list, kind] of [[n.facts, "fact"], [n.dimensions, "dimension"], [n.metrics, "metric"]])
       for (const x of list){
-        ix.push({label: x.name, kind: `${kind} · ${n.name}`, tables: [n.name]});
+        ix.push({label: x.name, kind: `${kind} · ${n.name}`, tables: [n.name], fields: [x.name],
+                 expr: x.expr, comment: x.comment});
         (owner[x.name] = owner[x.name] || new Set()).add(n.name);
       }
   }
   const derived = Object.fromEntries(p.derived_metrics.map(m => [m.name, m.expr]));
-  const homes = (name, seen = new Set()) => { // tables a possibly-derived metric stands on
-    if (owner[name]) return [...owner[name]];
-    if (!(name in derived) || seen.has(name)) return [];
+  // a derived metric stands on the home tables of the base metrics it references, recursively
+  const resolve = (name, seen = new Set()) => {
+    const out = {tables: new Set(), fields: new Set()};
+    if (owner[name]){ for (const t of owner[name]) out.tables.add(t); out.fields.add(name); return out; }
+    if (!(name in derived) || seen.has(name)) return out;
     seen.add(name);
-    const out = new Set();
     for (const m of derived[name].matchAll(/[A-Za-z_][A-Za-z0-9_]*/g))
-      for (const t of (owner[m[0]] ? [...owner[m[0]]] : homes(m[0], seen))) out.add(t);
-    return [...out];
+      if (owner[m[0]] || m[0] in derived){
+        const r = resolve(m[0], seen);
+        r.tables.forEach(t => out.tables.add(t));
+        r.fields.forEach(x => out.fields.add(x));
+      }
+    return out;
   };
-  for (const m of p.derived_metrics)
-    ix.push({label: m.name, kind: "derived metric", tables: homes(m.name)});
+  for (const m of p.derived_metrics){
+    const r = resolve(m.name);
+    ix.push({label: m.name, kind: "derived metric", tables: [...r.tables], fields: [...r.fields],
+             expr: m.expr, comment: m.comment});
+  }
   return ix;
 }
 
@@ -249,16 +267,30 @@ function setFocus(f){
   S.focus = f; S.hover = null;
   S.sel = f && f.tables.length === 1 ? {type: "node", id: f.tables[0]} : null;
   $("focuschip").className = f ? "open" : "";
+  if (f){
+    $("focusexpr").textContent = f.expr ? "= " + f.expr : "";
+    $("focuscomment").textContent = f.comment || "";
+  }
   render(); fit();
 }
 
 function sections(n, f){
+  const hot = name => !!(S.focus && S.focus.fields && S.focus.fields.includes(name));
   const out = [];
-  if (f.facts && n.facts.length) out.push({label: "FACTS", items: n.facts.map(x => x.name)});
-  if (f.dims && n.dimensions.length) out.push({label: "DIMENSIONS",
-    items: n.dimensions.map(d => d.name + (d.is_time ? " ⏱" : ""))});
-  if (f.mets && n.metrics.length) out.push({label: "METRICS", items: n.metrics.map(m => "Σ " + m.name)});
-  for (const s of out) if (s.items.length > 6) s.items = s.items.slice(0, 6).concat(["+" + (s.items.length - 6) + " more"]);
+  if (f.facts && n.facts.length)
+    out.push({label: "FACTS", items: n.facts.map(x => ({t: x.name, hot: hot(x.name)}))});
+  if (f.dims && n.dimensions.length)
+    out.push({label: "DIMENSIONS", items: n.dimensions.map(d => ({t: d.name + (d.is_time ? " ⏱" : ""), hot: hot(d.name)}))});
+  if (f.mets && n.metrics.length)
+    out.push({label: "METRICS", items: n.metrics.map(m => ({t: "Σ " + m.name, hot: hot(m.name)}))});
+  for (const s of out) if (s.items.length > 6){
+    const vis = s.items.slice(0, 6);
+    for (const it of s.items.slice(6)) if (it.hot){ // keep the focused field's rows visible past the fold
+      const j = vis.map(v => v.hot).lastIndexOf(false);
+      if (j >= 0) vis[j] = it;
+    }
+    s.items = vis.concat([{t: "+" + (s.items.length - 6) + " more", hot: false}]);
+  }
   return out;
 }
 
@@ -386,7 +418,10 @@ function render(){
       }
       for (const s of sections(n, f)){
         rows += `<text class="muted" x="10" y="${ry}" style="letter-spacing:.8px;font-size:9.5px">${s.label}</text>`; ry += 15;
-        for (const it of s.items){ rows += `<text x="16" y="${ry}">${esc(t(it, 32))}</text>`; ry += 15; }
+        for (const it of s.items){
+        rows += `<text x="16" y="${ry}"${it.hot ? ' style="fill:var(--accent);font-weight:700"' : ""}>${esc(t(it.t, 32))}</text>`;
+        ry += 15;
+      }
       }
     }
     const errChip = n.findings.length
@@ -641,7 +676,8 @@ function pickHit(i){
   const e = hits[i];
   if (!e || !e.tables.length) return;
   $("searchres").className = ""; $("search").value = e.label; $("search").blur();
-  setFocus({label: e.label, kind: e.kind, tables: e.tables});
+  setFocus({label: e.label, kind: e.kind, tables: e.tables, fields: e.fields || [],
+            expr: e.expr || null, comment: e.comment || null});
 }
 $("search").addEventListener("input", () => {
   const q = $("search").value.trim().toLowerCase(), res = $("searchres");
@@ -663,7 +699,7 @@ $("searchres").addEventListener("pointerdown", ev => {
 $("focusx").addEventListener("click", () => { $("search").value = ""; setFocus(null); });
 document.addEventListener("keydown", ev => {
   const typing = /INPUT|TEXTAREA/.test(document.activeElement.tagName);
-  if (ev.key === "/" && !typing){ ev.preventDefault(); $("search").focus(); }
+  if (ev.key === "/" && !typing){ ev.preventDefault(); $("sidebar").classList.remove("hidden"); $("search").focus(); }
   else if (ev.key === "Escape" && S.focus && !typing){ $("search").value = ""; setFocus(null); }
 });
 
