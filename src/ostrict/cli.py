@@ -136,6 +136,13 @@ def cmd_scaffold(args) -> int:
 
 
 def cmd_ui(args) -> int:
+    if args.export:
+        from .ui.export import export_studio_html  # fastapi-free: works without the [ui] extras
+
+        html = export_studio_html(args.path, lint_config=_lint_config(args.config))
+        Path(args.export).write_text(html)
+        print(f"wrote {args.export} — standalone studio snapshot, opens in any browser with no server")
+        return 0
     try:
         import uvicorn
 
@@ -227,6 +234,9 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--host", default="127.0.0.1")
     sp.add_argument("--port", type=int, default=8501)
     sp.add_argument("--no-browser", action="store_true", help="do not auto-open the browser")
+    sp.add_argument("--export", default=None, metavar="OUT_HTML",
+                    help="write a standalone HTML snapshot (data embedded, opens from disk, "
+                         "no [ui] extras needed) and exit instead of serving")
     sp.set_defaults(fn=cmd_ui)
 
     args = p.parse_args(argv)
