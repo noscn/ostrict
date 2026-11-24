@@ -158,7 +158,8 @@ See the model instead of scrolling it:
 
 ```bash
 pip install "ostrict[ui]"
-ostrict ui semantic/        # a view file, a folder of views, or your ostrict.yml
+ostrict ui semantic/                      # a view file, a folder of views, or your ostrict.yml
+ostrict ui semantic/ --export studio.html # one standalone HTML snapshot — no server needed
 ```
 
 `ostrict ui` serves a local read-only studio (default `http://127.0.0.1:8501`;
@@ -169,6 +170,11 @@ with grains, partitions, fields and values, hot reload on file save, and a
 "Connect AI Agent" panel with copy-paste MCP configs for Claude Desktop,
 Claude Code and Cursor. Strictly read-only — the YAML in Git stays the source
 of truth — and broken specs still render, because debugging them is the point.
+
+`--export` writes that same studio as one standalone HTML file with the
+snapshot embedded: it opens from disk, attaches to a ticket or a wiki, needs
+no Python (not even the `[ui]` extras to produce it), and is stamped with its
+export time instead of hot-reloading.
 
 ## Querying
 

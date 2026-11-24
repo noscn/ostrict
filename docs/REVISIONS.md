@@ -289,3 +289,21 @@ column types shaped these fixes:
     generator now proves all four lifecycle hooks fire and that its injected
     RBAC filter (``region = 'EU'``) actually gates the rows DuckDB returns —
     the exact silent-skip scenario that made F11 dangerous.
+
+# v0.5.6 — studio snapshot export
+
+33. **The studio exports to one standalone HTML file.** `ostrict ui …
+    --export out.html` writes the exact page the server serves, with the
+    resolved snapshot embedded as an inert JSON island, then exits: no
+    server, no `[ui]` extras (the exporter is fastapi-free), opens from
+    `file://`, attaches to a ticket or a wiki. The page boots from the
+    island when present — search, focus lineage, compact cards and the
+    inspector work unchanged — shows "snapshot · <UTC time>" in place of
+    the live-poll note, hides the Connect-AI-Agent button, and never
+    polls. Every `<` in the island escapes to `<` (in JSON, `<`
+    occurs only inside strings), so no spec comment can smuggle a
+    `</script>` out of the script tag; paths in the embedded data reduce
+    to basenames, because absolute local paths mean nothing — and say too
+    much — on another machine. `UIState` and the sidebar summaries moved
+    to `ui/state.py`, so the server and the exporter share one resolution
+    + fingerprint cache.

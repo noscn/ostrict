@@ -1,5 +1,6 @@
 """v0.5.0 `ostrict ui`: graph payload roles, lint mapping, endpoints, hot reload, CLI."""
 
+import json
 import shutil
 import sys
 
@@ -174,9 +175,33 @@ def test_page_ships_v054_studio_affordances(tmp_path):
     shutil.copy(FIXTURES / "ecommerce.yaml", views / "ecommerce.yaml")
     page = TestClient(create_app(views)).get("/").text
     for marker in ('id="modebtn"', 'id="sbtoggle"', 'id="search"', 'id="focuschip"', 'id="focusexpr"',
-                   '<details class="acc"', "COMPACT_AT"):
+                   '<details class="acc"', "COMPACT_AT", 'id="bootdata"'):
         assert marker in page
     assert "<script src=" not in page and "https://" not in page  # no external libraries or CDNs
+
+
+def test_ui_export_writes_standalone_snapshot(tmp_path, monkeypatch):
+    """v0.5.6: `ostrict ui --export` embeds the snapshot as a JSON island in the
+    page — openable from disk with no server — and never imports fastapi."""
+    views = tmp_path / "views"
+    views.mkdir()
+    shutil.copy(FIXTURES / "ecommerce.yaml", views / "ecommerce.yaml")
+    (views / "broken.yaml").write_text("tables: [")  # a parse error joins the broken list
+    out = tmp_path / "snap.html"
+    monkeypatch.setitem(sys.modules, "fastapi", None)  # export must work without the [ui] extras
+    assert cli_main(["ui", str(views), "--export", str(out)]) == 0
+
+    page = out.read_text()
+    island = page.split('<script id="bootdata" type="application/json">', 1)[1].split("</script>", 1)[0]
+    assert island != "null"  # the placeholder was replaced…
+    data = json.loads(island)  # …with JSON that survives the <-escaping round trip
+    assert [v["name"] for v in data["views"]] == ["ecommerce"]
+    assert data["graphs"]["ecommerce"]["summary"]["errors"] == 0
+    assert {n["name"] for n in data["graphs"]["ecommerce"]["nodes"]} >= {"orders", "customers", "order_items"}
+    assert data["broken"][0]["file"] == "broken.yaml"  # absolute paths reduce to basenames
+    assert data["views"][0]["file"] == "ecommerce.yaml"
+    assert data["exported_at"].endswith("UTC")
+    assert "<script src=" not in page and "https://" not in page  # still one self-contained file
 
 
 def test_cli_help_and_missing_extras(monkeypatch, capsys):
